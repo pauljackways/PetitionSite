@@ -2,7 +2,7 @@ import { getPool } from '../../config/db';
 import Logger from '../../config/logger';
 import { ResultSetHeader } from 'mysql2';
 import { compare } from '../services/passwords';
-import {createToken} from "../services/session";
+import {createToken, decodeToken} from "../services/session";
 
 const registerUser = async (email: string, firstName: string, lastName: string, password: string): Promise<ResultSetHeader> => {
     try {
@@ -22,11 +22,9 @@ const loginUser = async (email: string, password: string): Promise<any> => {
         Logger.info(`Authenticating user with email: ${email}`);
         const conn = await getPool().getConnection();
         const getQuery = 'select password, id from user where email = ?';
-        const [ result ] = await conn.query( getQuery, [ email, password ] );
-        Logger.http(`result ${password}: ${result.password}`)
-        Logger.http(`result ${result}`)
-        if (result[0] === null) {
-            Logger.info(`no user with that ID`);
+        const [ result ] = await conn.query( getQuery, [ email ] );
+        if (!(result.length > 0)) {
+            Logger.info(`no user with that email`);
             await conn.release();
             return false;
         }
@@ -38,7 +36,7 @@ const loginUser = async (email: string, password: string): Promise<any> => {
             Logger.info(`passwords match`);
             result[0].token = createToken(`${result[0].id}`);
             const setQuery = 'update user set auth_token = ? where id = ?';
-            const [ tokenSet ] = await conn.query( getQuery, [ result[0].token, result[0].id ] );
+            const [ tokenSet ] = await conn.query( setQuery, [ result[0].token, result[0].id ] );
             return result[0];
         }
     } catch(err) {
@@ -50,15 +48,16 @@ const logoutUser = async (id: string): Promise<boolean> => {
     try {
         Logger.info(`logging out user ${id}`);
         const conn = await getPool().getConnection();
-        const getQuery = 'select auth_token from user where id = ?';
-        const deleteQuery = 'delete auth_token from user where id = ?';
-        const [ deleteResult ] = await conn.query( deleteQuery, [ id ] );
-        const [ deleteCheck ] = await conn.query( getQuery, [ id ] );
+        const query = 'update user set auth_token = null where id = ?';
+        const [ updateResult ] = await conn.query( query, [ id ] );
+        const deletedQuery = 'select auth_token from user where id = ?';
+        const [ deletedResult ] = await conn.query( deletedQuery, [ id ] );
         await conn.release();
-        if (deleteCheck[0]) {
+        Logger.info(`auth token${deletedResult[0].auth_token}`);
+        if (deletedResult[0].auth_token) {
             throw new Error('Logout failed');
         } else {
-            return true;
+            return updateResult;
         }
     } catch(err) {
         Logger.error(err);
@@ -89,7 +88,21 @@ const updateUser = async (id: string, updateData: Record<string, any>): Promise<
         const conn = await getPool().getConnection();
         const values: string[] = [];
         let query = 'update user set ';
+        if (updateData.oldPassword) {
+            const passQuery = 'select password from user where id = ?';
+            const [ currentPassword ] = await conn.query( passQuery, id );
+            Logger.info(`Checking ${id} oldpassword ${updateData.oldPassword} ${currentPassword[0].password} matches db`)
+            if (!await compare(updateData.oldPassword, currentPassword[0].password)) {
+                await conn.release();
+                return -1;
+            }
+            values.push(updateData.password);
+            query += 'password = ?'
+        }
         if (updateData.email) {
+            if (values.length > 0) {
+                query += ', ';
+            }
             values.push(updateData.email);
             query += 'email = ?'
         }
@@ -107,20 +120,13 @@ const updateUser = async (id: string, updateData: Record<string, any>): Promise<
             values.push(updateData.lastName);
             query += 'last_name = ?'
         }
-        if (updateData.password) {
-            if (values.length > 0) {
-                query += ', ';
-            }
-            values.push(updateData.password);
-            query += 'password = ?'
-        }
         query += ' where id = ?'
         values.push(id);
         Logger.http(`${query} query`)
         const [ result ] = await conn.query( query, values );
         await conn.release();
         Logger.http(`released`)
-        return result.affectedRows;
+        return result;
     } catch(err) {
         Logger.error(err);
     }
@@ -140,17 +146,20 @@ const checkUnique = async (key: string, value: string): Promise<boolean> => {
     }
 }
 
-const checkToken = async (id: string, userToken: string): Promise<boolean> => {
-    Logger.http(`checking token ${id}`)
+const checkToken = async (reqId: string, userToken: string): Promise<boolean> => {
+    Logger.http(`checking token ${userToken}`)
     try {
+        const id = await decodeToken(userToken);
+        if (reqId !== id) {
+            return false;
+        }
         const conn = await getPool().getConnection();
         const getQuery = 'select auth_token from user where id = ?';
         const [ databaseToken ] = await conn.query( getQuery, [ id ] );
-        Logger.http(`checking token ${userToken} ${databaseToken.auth_token} ${databaseToken[0]}`)
-        if (!databaseToken.auth_token) {
+        if (!(databaseToken.length > 0)) {
             return false;
         }
-        return databaseToken.auth_token === userToken;
+        return databaseToken[0].auth_token === userToken;
     } catch (err) {
         Logger.error(err);
     }

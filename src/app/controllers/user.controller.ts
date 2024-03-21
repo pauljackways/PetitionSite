@@ -90,7 +90,7 @@ const logout = async (req: Request, res: Response): Promise<void> => {
     try{
         const tokenCoded = req.header('X-Authorization');
         const id = await decodeToken(tokenCoded);
-        if (!await users.checkToken(`${id}`, tokenCoded)) {
+        if (!await users.checkToken(`${id}`,tokenCoded)) {
             res.statusMessage = "Unauthorized. Cannot log out if you are not authenticated";
             res.status(401).send();
             return;
@@ -111,8 +111,7 @@ const logout = async (req: Request, res: Response): Promise<void> => {
 const view = async (req: Request, res: Response): Promise<void> => {
     try{
         const tokenCoded = req.header('X-Authorization');
-        const id = await decodeToken(tokenCoded);
-        const authenticated = await users.checkToken(`${id}`, tokenCoded);
+        const authenticated = await users.checkToken(`${req.params.id}`, tokenCoded);
         const result = await users.viewUser(req.params.id, authenticated);
         if (result.length === 0) {
             res.status(404).send('Not Found. No user with specified ID');
@@ -141,7 +140,7 @@ const update = async (req: Request, res: Response): Promise<void> => {
         }
         const tokenCoded = req.header('X-Authorization');
         const id = await decodeToken(tokenCoded);
-        if (!await users.checkToken(`${id}`, tokenCoded)){
+        if (!await users.checkToken(`${req.params.id}`, tokenCoded)){
             Logger.http(`token not valid for user`)
             res.statusMessage = "Forbidden. Can not edit another user's information";
             res.status(403).send();
@@ -163,24 +162,38 @@ const update = async (req: Request, res: Response): Promise<void> => {
             } else {
                 Logger.http(`passwords both given and different`)
                 const hashedPassword = await hash(req.body.password);
-                const hashedCurrentPassword = await hash(req.body.currentPassword);
                 updateData.password = hashedPassword;
-                updateData.currentPassword = hashedCurrentPassword;
+                Logger.http(`new password ${updateData.password}`)
+                updateData.oldPassword = req.body.currentPassword;
             }
         }
         updateData.first_name = req.body.firstName;
         updateData.last_name = req.body.lastName;
-        updateData.email = req.body.email;
-        if (!await users.checkUnique('email', req.body.email)) {
-            Logger.http(`email already in use`)
-            res.status(403).send('Forbidden. Email already in use');
-            return;
+        if (req.body.email) {
+            if (!await users.checkUnique('email', req.body.email)) {
+                Logger.http(`email already in use`)
+                res.status(403).send('Forbidden. Email already in use');
+                return;
+            } else {
+                updateData.email = req.body.email;
+            }
         }
         const userId = req.params.id;
         const result = await users.updateUser(`${userId}`, updateData);
-        if (result > 0) {
+        if (result === -1) {
+            Logger.http(`ID given password doesn't match oldpassword`)
+            res.statusMessage = "Unauthorized or Invalid currentPassword";
+            res.status(401).send();
+            return;
+        }
+        if (result.affectedRows > 0) {
             Logger.http(`updated`)
             res.status(200).send(result[0]);
+            return;
+        } else {
+            Logger.http(`Not Found`)
+            res.statusMessage = "Not Found";
+            res.status(404).send();
             return;
         }
     } catch (err) {
