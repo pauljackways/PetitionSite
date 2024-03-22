@@ -1,15 +1,44 @@
 import { getPool } from '../../config/db';
 import Logger from '../../config/logger';
+import * as fs from 'fs';
 import { ResultSetHeader } from 'mysql2';
-import { compare } from '../services/passwords';
-import {createToken, decodeToken} from "../services/session";
-
-const getImage = async (email: string, firstName: string, lastName: string, password: string): Promise<ResultSetHeader> => {
+const filePath = `storage/images/`;
+const getImage = async (table: string, id: string, setBool: boolean): Promise<any> => {
     try {
-        Logger.info(`Adding user ${firstName} ${lastName} to the database`);
+        Logger.info(`getting photo from database`);
         const conn = await getPool().getConnection();
-        const query = 'select image_filename user (email, first_name, last_name, password) values (?, ?, ?, ?)';
-        const [ result ] = await conn.query( query, [ email, firstName, lastName, password ] );
+        const query = 'select id, image_filename from ' + table + ' where id = ?';
+        const [ queryResult ] = await conn.query( query, [ id ] );
+        await conn.release();
+        if (queryResult.length > 0) {
+            let imageData: Buffer = null;
+            if (!(queryResult[0].image_filename === null) && !(queryResult[0].image_filename === undefined)) {
+                if (setBool) {
+                    imageData = await fs.promises.readFile(filePath + queryResult[0].image_filename);
+                }
+            }
+            return {
+                filename: queryResult[0].image_filename,
+                binary: imageData
+            };
+        }
+        return false;
+    } catch(err) {
+        Logger.error(err);
+    }
+}
+
+const setImage = async (table: string, id: string, MIME: string, imageData: Buffer): Promise<any> => {
+    try {
+        Logger.info(`Adding / replacing profile photo to the database`);
+        const filename = `${table}${id}.${MIME.substring(6)}`;
+        if (fs.existsSync(filePath+filename)) {
+            await deleteImage(table, id);
+        }
+        await fs.promises.writeFile((filePath+filename), imageData, { flag: 'wx' });
+        const conn = await getPool().getConnection();
+        const query = 'update ' + table + ' set image_filename = ? where id = ?';
+        const [ result ] = await conn.query( query, [ filename, id ] );
         await conn.release();
         return result;
     } catch(err) {
@@ -17,27 +46,24 @@ const getImage = async (email: string, firstName: string, lastName: string, pass
     }
 }
 
-const setImage = async (email: string, firstName: string, lastName: string, password: string): Promise<ResultSetHeader> => {
+const deleteImage = async (table: string, id: string): Promise<any> => {
     try {
-        Logger.info(`Adding user ${firstName} ${lastName} to the database`);
         const conn = await getPool().getConnection();
-        const query = 'insert into user (email, first_name, last_name, password) values (?, ?, ?, ?)';
-        const [ result ] = await conn.query( query, [ email, firstName, lastName, password ] );
+        const getQuery = 'select image_filename from ' + table + ' where id = ?';
+        const [ queryResult ] = await conn.query( getQuery, [ id ] );
         await conn.release();
-        return result;
-    } catch(err) {
-        Logger.error(err);
-    }
-}
-
-const deleteImage = async (email: string, firstName: string, lastName: string, password: string): Promise<ResultSetHeader> => {
-    try {
-        Logger.info(`Adding user ${firstName} ${lastName} to the database`);
-        const conn = await getPool().getConnection();
-        const query = 'insert into user (email, first_name, last_name, password) values (?, ?, ?, ?)';
-        const [ result ] = await conn.query( query, [ email, firstName, lastName, password ] );
-        await conn.release();
-        return result;
+        if (!(queryResult[0].image_filename === null)) {
+            Logger.info(`deleting photo filename from database`);
+            const deleteQuery = 'update ' + table + ' set image_filename = ? where id = ?';
+            const [ result ] = await conn.query( deleteQuery, [ null, id ] );
+            await conn.release();
+            Logger.info(`deleting photo file`);
+            if (!(queryResult[0].image_filename === null) && !(queryResult[0].image_filename === undefined)) {
+                await fs.promises.unlink(filePath + queryResult[0].image_filename);
+            }
+            return result;
+        }
+        return false;
     } catch(err) {
         Logger.error(err);
     }

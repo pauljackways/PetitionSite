@@ -1,6 +1,5 @@
 import express from "express"
 import bodyParser from "body-parser"
-import cookieParser from 'cookie-parser';
 import allowCrossOriginRequestsMiddleware from "../app/middleware/cors.middleware"
 import Logger from "./logger"
 import {rootUrl} from "../app/routes/base.routes";
@@ -10,7 +9,6 @@ export default () => {
 
     // Middleware
     app.use(allowCrossOriginRequestsMiddleware);
-    app.use(cookieParser());
     app.use(bodyParser.json());
     app.use(bodyParser.raw({type: 'text/plain'}));
     app.use(bodyParser.raw({type: ['image/*'], limit: '5mb'}));
