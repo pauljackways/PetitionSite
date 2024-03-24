@@ -2,6 +2,8 @@ import {Request, Response} from "express";
 import Logger from "../../config/logger";
 import * as users from "../models/user.model";
 import * as image from "../models/image.model";
+import * as petitions from "../models/petition.model";
+
 const validFileTypes: string[] = ["image/png", "image/jpeg", "image/gif"];
 
 const endpoint = 'petition';
@@ -10,9 +12,9 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
         const id = req.params.id;
         const result = await image.getImage(endpoint, id, true);
         if (!result || result.binary === null) {
-            Logger.http(`user not found`)
-            res.statusMessage = "Not Found. No user with specified ID, or user has no image";
-            res.status(400).send();
+            Logger.http(`petition not found`)
+            res.statusMessage = "Not Found. No petition with specified ID, or user has no image";
+            res.status(404).send();
             return;
         }
         if (result.binary) {
@@ -39,11 +41,12 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
 
 const setImage = async (req: Request, res: Response): Promise<void> => {
     try{
-        const id = req.params.id;
         const token = req.header('X-Authorization');
-        if (!await users.checkToken(`${id}`, token)) {
+        const petition = await petitions.getPetition(req.params.id);
+        const ownerId = petition.ownerId;
+        if (!await users.checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for user`)
-            res.statusMessage = "Forbidden. Can not change another user's profile photo";
+            res.statusMessage = "Forbidden. Only the owner of a petition can change the hero image";
             res.status(403).send();
             return;
         }
@@ -55,14 +58,14 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const imageData: Buffer = req.body;
-        const result = await image.getImage(endpoint, id, false);
+        const result = await image.getImage(endpoint, req.params.id, false);
         if (!result) {
             Logger.http(`user not found`)
-            res.statusMessage = "Not found. No such user with ID given";
-            res.status(400).send();
+            res.statusMessage = "Not found. No such petition with ID given";
+            res.status(404).send();
             return;
         }
-        if (await image.setImage(endpoint, id, contentType, imageData)) {
+        if (await image.setImage(endpoint, req.params.id, contentType, imageData)) {
             if (result > 0) {
                 Logger.http(`updated image`)
                 res.statusMessage = "OK. Image updated";

@@ -2,10 +2,7 @@ import * as users from '../models/user.model';
 import * as petitions from '../models/petition.model';
 import {Request, Response} from "express";
 import Logger from '../../config/logger';
-import Ajv from 'ajv';
-import addFormats from "ajv-formats";
 import * as schemas from '../resources/schemas.json';
-import {hash, compare } from '../services/passwords';
 import {createToken, decodeToken} from "../services/session";
 import {validate} from "../services/validation";
 
@@ -125,9 +122,38 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
 
 const deletePetition = async (req: Request, res: Response): Promise<void> => {
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        const token = req.header('X-Authorization');
+        if (!token) {
+            Logger.http(`token not provided`)
+            res.statusMessage = "Unauthorized";
+            res.status(401).send();
+            return;
+        }
+        const check = await petitions.getPetition(req.params.id)
+        if (!check) {
+            Logger.http(`petition not found`)
+            res.statusMessage = "Not Found. No petition found with id";
+            res.status(404).send();
+            return;
+        }
+        const petition = await petitions.getPetition(req.params.id);
+        const ownerId = petition.ownerId;
+        if (!await users.checkToken(`${ownerId}`, token)) {
+            Logger.http(`token not valid for user`)
+            res.statusMessage = "Forbidden. Only the owner of a petition may delete it";
+            res.status(403).send();
+            return;
+        }
+        const result = await petitions.deletePetition(req.params.id);
+        if (!result) {
+            Logger.http(`found supporters`)
+            res.statusMessage = "Can not delete a petition with one or more supporters";
+            res.status(403).send();
+            return;
+        }
+        Logger.http(`deleted petition`);
+        res.statusMessage = "No Content";
+        res.status(204).send(result);
         return;
     } catch (err) {
         Logger.error(err);

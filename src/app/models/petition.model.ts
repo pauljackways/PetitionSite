@@ -135,7 +135,7 @@ const getPetition = async (id: string): Promise<any> => {
             const [ supportTiers ] = await conn.query( supportTierQuery, id );
             result[0].supportTiers = supportTiers;
             await conn.release();
-            return result;
+            return result[0];
         }
         await conn.release();
         return false;
@@ -199,15 +199,21 @@ const editPetition = async (key: string, value: string): Promise<boolean> => {
         Logger.error(err);
     }
 }
-const deletePetition = async (key: string, value: string): Promise<boolean> => {
-    Logger.http(`checking uniqueness`)
+const deletePetition = async (id: string): Promise<boolean> => {
     try {
         const conn = await getPool().getConnection();
-        const query = 'select ' + key + ' from user where ' + key + ' = ?';
-        const [ result ] = await conn.query( query, value );
+        const supporterQuery = 'select supporter.id from petition join supporter on supporter.petition_id =' +
+            ' petition.id where petition.id = ?';
+        const [ supporterResult ] = await conn.query( supporterQuery, id );
+        if (supporterResult.length > 0) {
+            Logger.http(`supporters exist`)
+            return false;
+        }
+        const query = 'delete from petition where id = ?';
+        const [ result ] = await conn.query( query, id );
         await conn.release();
-        Logger.http(`${!(result.length > 0)} ${result.length} ${result} result`)
-        return !(result.length > 0);
+        Logger.http(`deleted petition`)
+        return true;
     } catch(err) {
         Logger.error(err);
     }

@@ -2,7 +2,7 @@ import { getPool } from '../../config/db';
 import Logger from '../../config/logger';
 import * as fs from 'fs';
 import { ResultSetHeader } from 'mysql2';
-const filePath = `storage/images/`;
+const filePath = `storage/default/`;
 const getImage = async (table: string, id: string, setBool: boolean): Promise<any> => {
     try {
         Logger.info(`getting photo from database`);
