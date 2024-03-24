@@ -1,25 +1,12 @@
 import * as users from '../models/user.model';
 import {Request, Response} from "express";
 import Logger from '../../config/logger';
-import Ajv from 'ajv';
-import addFormats from "ajv-formats";
 import * as schemas from '../resources/schemas.json';
-import {hash, compare } from '../services/passwords';
-import {createToken, decodeToken} from "../services/session";
+import {hash} from '../services/passwords';
+import {decodeToken} from "../services/session";
+import {validate} from "../services/validation";
 
-const ajv = new Ajv({removeAdditional: 'all', strict: true});
-addFormats(ajv);
-const validate = async (schema: object, data: any) => {
-    try {
-        const validator = ajv.compile(schema);
-        const valid = await validator(data);
-        if (!valid)
-            return ajv.errorsText(validator.errors);
-        return true;
-    } catch (err) {
-        return err.message;
-    }
-}
+
 const register = async (req: Request, res: Response): Promise<void> => {
 
     Logger.http(`POST create a user with name: ${req.body.firstName} ${req.body.lastName}, email: ${req.body.email}`)

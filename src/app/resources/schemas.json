@@ -99,27 +99,22 @@
       "ownerId": {
         "type": "string",
         "minLength": 1,
-        "format": "integer"
       },
       "supporterId": {
         "type": "string",
         "minLength": 1,
-        "format": "integer"
       },
       "startIndex": {
         "type": "string",
         "minLength": 1,
-        "format": "integer"
       },
       "count": {
         "type": "string",
         "minLength": 1,
-        "format": "integer"
       },
       "supportingCost": {
         "type": "string",
         "minLength": 1,
-        "format": "integer"
       },
       "sortBy": {
         "type": "string",
@@ -136,13 +131,11 @@
         "anyOf": [
           {
             "type": "string",
-            "format": "integer"
           },
           {
             "type": "array",
             "items": {
               "type": "string",
-              "format": "integer"
             }
           }
         ]
@@ -166,7 +159,6 @@
       },
       "categoryId": {
         "type": "number",
-        "format": "integer",
         "minimum": 0,
         "nullable": false
       },

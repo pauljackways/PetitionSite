@@ -21,6 +21,9 @@ const createToken = (payload: string) => {
 const decodeToken = async (token: string): Promise<null | any> => {
     Logger.http(`Decoding session token`);
     try {
+        if (!token) {
+            return false;
+        }
         const secretKey = process.env.SENG365_JWT_KEY || "NoKeyInENV";
         return jwt.verify(token, secretKey);
     } catch (err) {
