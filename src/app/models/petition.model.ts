@@ -130,6 +130,7 @@ const getPetition = async (id: string): Promise<any> => {
             ' user.id where petition.id = ? group by petition.id';
         const [ result ] = await conn.query( mainQuery, id );
         if (result.length > 0) {
+            Logger.http(`petitions found`)
             const supportTierQuery = 'select support_tier.title, support_tier.description, cost, support_tier.id as' +
                 ' supportTierId from support_tier join petition on support_tier.petition_id = petition.id where petition.id = ?';
             const [ supportTiers ] = await conn.query( supportTierQuery, id );

@@ -12,8 +12,8 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
         const id = req.params.id;
         const result = await image.getImage(endpoint, id);
         if (!result || result.binary === null) {
-            Logger.http(`petition not found`)
-            res.statusMessage = "Not Found. No petition with specified ID, or user has no image";
+            Logger.http(`user not found`)
+            res.statusMessage = "Not Found. No user with specified ID, or user has no image";
             res.status(404).send();
             return;
         }
@@ -41,31 +41,31 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
 
 const setImage = async (req: Request, res: Response): Promise<void> => {
     try{
+        const id = req.params.id;
+        const result = await petitions.getPetition(id);
+        if (!(result.ownerId)) {
+            Logger.http(`user not found`)
+            res.statusMessage = "Not found. No such user with ID given";
+            res.status(404).send();
+            return;
+        }
+        const ownerId = result.ownerId;
         const token = req.header('X-Authorization');
-        const petition = await petitions.getPetition(req.params.id);
-        const ownerId = petition.ownerId;
         if (!await users.checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for user`)
-            res.statusMessage = "Forbidden. Only the owner of a petition can change the hero image";
+            res.statusMessage = "Forbidden. Can not change another user's profile photo";
             res.status(403).send();
             return;
         }
         const contentType = req.header('Content-Type');
-        if (!validFileTypes.includes(contentType) || (req.body.length < 100)) { // can't be less than 100 bytes
+        if (!(validFileTypes.includes(contentType))) {
             Logger.http(`invalid filetype`)
             res.statusMessage = "Bad Request. Invalid image supplied (possibly incorrect file type)";
             res.status(400).send();
             return;
         }
         const imageData: Buffer = req.body;
-        const result = await image.getImage(endpoint, req.params.id);
-        if (!result) {
-            Logger.http(`petition not found`)
-            res.statusMessage = "Not found. No such petition with ID given";
-            res.status(404).send();
-            return;
-        }
-        if (await image.setImage(endpoint, req.params.id, contentType, imageData)) {
+        if (await image.setImage(endpoint, id, contentType, imageData)) {
             if (result > 0) {
                 Logger.http(`updated image`)
                 res.statusMessage = "OK. Image updated";

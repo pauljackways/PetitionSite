@@ -54,7 +54,7 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const contentType = req.header('Content-Type');
-        if (!validFileTypes.includes(contentType) || (req.body.length < 100)) { // can't be less than 100 bytes
+        if (!(validFileTypes.includes(contentType))) {
             Logger.http(`invalid filetype`)
             res.statusMessage = "Bad Request. Invalid image supplied (possibly incorrect file type)";
             res.status(400).send();
