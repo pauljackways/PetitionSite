@@ -10,7 +10,7 @@ const endpoint = 'petition';
 const getImage = async (req: Request, res: Response): Promise<void> => {
     try{
         const id = req.params.id;
-        const result = await image.getImage(endpoint, id, true);
+        const result = await image.getImage(endpoint, id);
         if (!result || result.binary === null) {
             Logger.http(`petition not found`)
             res.statusMessage = "Not Found. No petition with specified ID, or user has no image";
@@ -58,9 +58,9 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const imageData: Buffer = req.body;
-        const result = await image.getImage(endpoint, req.params.id, false);
+        const result = await image.getImage(endpoint, req.params.id);
         if (!result) {
-            Logger.http(`user not found`)
+            Logger.http(`petition not found`)
             res.statusMessage = "Not found. No such petition with ID given";
             res.status(404).send();
             return;

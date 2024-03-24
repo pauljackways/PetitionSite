@@ -7,7 +7,7 @@ const endpoint = 'user';
 const getImage = async (req: Request, res: Response): Promise<void> => {
     try{
         const id = req.params.id;
-        const result = await image.getImage(endpoint, id, true);
+        const result = await image.getImage(endpoint, id);
         if (!result || result.binary === null) {
             Logger.http(`user not found`)
             res.statusMessage = "Not Found. No user with specified ID, or user has no image";
@@ -39,6 +39,13 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
 const setImage = async (req: Request, res: Response): Promise<void> => {
     try{
         const id = req.params.id;
+        const result = await users.viewUser(id, false);
+        if (!(result.length > 0)) {
+            Logger.http(`user not found`)
+            res.statusMessage = "Not found. No such user with ID given";
+            res.status(404).send();
+            return;
+        }
         const token = req.header('X-Authorization');
         if (!await users.checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
@@ -54,13 +61,6 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const imageData: Buffer = req.body;
-        const result = await image.getImage(endpoint, id, false);
-        if (!result) {
-            Logger.http(`user not found`)
-            res.statusMessage = "Not found. No such user with ID given";
-            res.status(404).send();
-            return;
-        }
         if (await image.setImage(endpoint, id, contentType, imageData)) {
             if (result > 0) {
                 Logger.http(`updated image`)
@@ -89,6 +89,12 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
 const deleteImage = async (req: Request, res: Response): Promise<void> => {
     try{
         const id = req.params.id;
+        if (!await image.getImage(endpoint, id)) {
+            Logger.http(`user not found`)
+            res.statusMessage = "Not Found. No user with specified ID, or user has no image";
+            res.status(404).send();
+            return;
+        }
         const token = req.header('X-Authorization');
         if (!await users.checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
@@ -96,18 +102,7 @@ const deleteImage = async (req: Request, res: Response): Promise<void> => {
             res.status(403).send();
             return;
         }
-        const result = await image.deleteImage(endpoint, id);
-        if (!result) {
-            Logger.http(`user not found`)
-            res.statusMessage = "Not Found. No user with specified ID, or user has no image";
-            res.status(404).send();
-            return;
-        }
-        if (!(result.affectedRows === 1)) {
-            res.statusMessage = "Internal Server Error";
-            res.status(500).send();
-            return;
-        }
+        await image.deleteImage(endpoint, id);
         res.statusMessage = "OK";
         res.status(200).send();
         return;

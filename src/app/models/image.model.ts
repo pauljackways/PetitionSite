@@ -3,19 +3,19 @@ import Logger from '../../config/logger';
 import * as fs from 'fs';
 import { ResultSetHeader } from 'mysql2';
 const filePath = `storage/default/`;
-const getImage = async (table: string, id: string, setBool: boolean): Promise<any> => {
+const getImage = async (table: string, id: string): Promise<any> => {
     try {
         Logger.info(`getting photo from database`);
         const conn = await getPool().getConnection();
         const query = 'select id, image_filename from ' + table + ' where id = ?';
         const [ queryResult ] = await conn.query( query, [ id ] );
         await conn.release();
+        let imageData: Buffer = null;
         if (queryResult.length > 0) {
-            let imageData: Buffer = null;
-            if (!(queryResult[0].image_filename === null) && !(queryResult[0].image_filename === undefined)) {
-                if (setBool) {
-                    imageData = await fs.promises.readFile(filePath + queryResult[0].image_filename);
-                }
+            try {
+                imageData = await fs.promises.readFile(filePath + queryResult[0].image_filename);
+            } catch (err) {
+                return false;
             }
             return {
                 filename: queryResult[0].image_filename,
@@ -23,7 +23,7 @@ const getImage = async (table: string, id: string, setBool: boolean): Promise<an
             };
         }
         return false;
-    } catch(err) {
+        } catch(err) {
         Logger.error(err);
     }
 }
@@ -33,7 +33,7 @@ const setImage = async (table: string, id: string, MIME: string, imageData: Buff
         Logger.info(`Adding / replacing profile photo to the database`);
         const filename = `${table}${id}.${MIME.substring(6)}`;
         if (fs.existsSync(filePath+filename)) {
-            await deleteImage(table, id);
+            await deleteImage(table, id, filename);
         }
         await fs.promises.writeFile((filePath+filename), imageData, { flag: 'wx' });
         const conn = await getPool().getConnection();
@@ -46,26 +46,26 @@ const setImage = async (table: string, id: string, MIME: string, imageData: Buff
     }
 }
 
-const deleteImage = async (table: string, id: string): Promise<any> => {
+const deleteImage = async (table: string, id: string, filename = ''): Promise<any> => {
     try {
         const conn = await getPool().getConnection();
         const getQuery = 'select image_filename from ' + table + ' where id = ?';
-        const [ queryResult ] = await conn.query( getQuery, [ id ] );
+        const [ queryResult ] = await conn.query( getQuery, id );
         await conn.release();
-        if (!(queryResult[0].image_filename === null)) {
-            Logger.info(`deleting photo filename from database`);
-            const deleteQuery = 'update ' + table + ' set image_filename = ? where id = ?';
-            const [ result ] = await conn.query( deleteQuery, [ null, id ] );
-            await conn.release();
-            Logger.info(`deleting photo file`);
-            if (!(queryResult[0].image_filename === null) && !(queryResult[0].image_filename === undefined)) {
-                await fs.promises.unlink(filePath + queryResult[0].image_filename);
-            }
-            return result;
+        try {
+            await fs.promises.unlink(filePath + queryResult[0].image_filename);
+        } catch(err) {
+            Logger.info(`no file 1`)
         }
-        return false;
+        try {
+            await fs.promises.unlink(filePath + filename);
+        } catch(err) {
+            Logger.info(`no file 2`)
+        }
+        return true;
     } catch(err) {
-        Logger.error(err);
+        Logger.error(`here  ugh`);
+        return false;
     }
 }
 

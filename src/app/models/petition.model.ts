@@ -186,15 +186,54 @@ const addPetition = async (id: number, body: any): Promise<any> => {
         Logger.error(err);
     }
 }
-const editPetition = async (key: string, value: string): Promise<boolean> => {
-    Logger.http(`checking uniqueness`)
+const editPetition = async (id: string, body: any): Promise<boolean> => {
     try {
+        if (!body.title && !body.description && !body.categoryId) {
+            return true; // No changes were made
+        }
+        let query = 'update petition set ';
+        const values: string[] = [];
+        if (body.categoryId) {
+            const categories = await getCategories();
+            let categoryFlag = 0;
+            for (const item of categories) {
+                if (item.categoryId === body.categoryId) {
+                    categoryFlag = 1;
+                    break;
+                }
+            }
+            if (!categoryFlag){
+                return false;
+            }
+            if (values.length > 0) {
+                query += ', '
+            }
+            values.push(body.categoryId);
+            query += 'category_id = ? ';
+            Logger.http(`${query}`);
+        }
+        if (body.title) {
+            if (values.length > 0) {
+                query += ', '
+            }
+            values.push(body.title);
+            query += 'title = ? ';
+            Logger.http(`${query}`);
+        }
+        if (body.description) {
+            if (values.length > 0) {
+                query += ', '
+            }
+            values.push(body.description);
+            query += 'description = ? ';
+            Logger.http(`${query}`);
+        }
+        values.push(id);
+        query += 'where id = ?';
         const conn = await getPool().getConnection();
-        const query = 'select ' + key + ' from user where ' + key + ' = ?';
-        const [ result ] = await conn.query( query, value );
+        const [ result ] = await conn.query( query, values );
         await conn.release();
-        Logger.http(`${!(result.length > 0)} ${result.length} ${result} result`)
-        return !(result.length > 0);
+        return true;
     } catch(err) {
         Logger.error(err);
     }

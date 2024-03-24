@@ -221,8 +221,7 @@
         "nullable": false
       },
       "categoryId": {
-        "type": "number",
-        "format": "integer",
+        "type": "integer",
         "minimum": 0,
         "nullable": false
       }

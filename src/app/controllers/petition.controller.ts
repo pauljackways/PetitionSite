@@ -108,10 +108,57 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
 
 const editPetition = async (req: Request, res: Response): Promise<void> => {
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+        const getResult = await petitions.getPetition(req.params.id);
+        if (!getResult) {
+            Logger.http(`petition not found`)
+            res.statusMessage = "Not Fount. No petition with id";
+            res.status(404).send();
+            return;
+        }
+        if (req.body.title) {
+            const titleResult = await petitions.getAllPetitions({q: req.body.title});
+            if (titleResult[0]) {
+                Logger.info(`title ${titleResult[0].title}`)
+                for (const item of titleResult) {
+                    if (item.title === req.body.title) {
+                        Logger.http(`titles match`)
+                        res.statusMessage = "Forbidden. Petition title already exists";
+                        res.status(403).send();
+                        return;
+                    }
+                }
+            }
+        }
+        if (!isNaN(req.body.categoryId)) {
+            req.body.categoryId = parseInt(req.body.categoryId, 10);
+        }
+        const validation = await validate(schemas.petition_patch, req.body);
+        if (validation !== true) {
+            Logger.http(`Failed ajv validation. ${validation.toString()}`)
+            res.status(400).send(`Bad request. Invalid information`);
+            return;
+        }
+        const token = req.header('X-Authorization');
+        const petition = await petitions.getPetition(req.params.id);
+        const ownerId = petition.ownerId;
+        if (!await users.checkToken(`${ownerId}`, token)) {
+            Logger.http(`token not valid for user`)
+            res.statusMessage = "Forbidden. Only the owner of a petition may change it";
+            res.status(403).send();
+            return;
+        }
+        const editResult = await petitions.editPetition(req.params.id, req.body)
+        if (editResult) {
+            Logger.http(`petition updated`);
+            res.statusMessage = "OK";
+            res.status(201).send();
+            return;
+        } else {
+            Logger.http(`bad request`);
+            res.statusMessage = "Bad Request";
+            res.status(400).send();
+            return;
+        }
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
