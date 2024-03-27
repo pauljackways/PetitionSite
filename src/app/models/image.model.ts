@@ -64,7 +64,6 @@ const deleteImage = async (table: string, id: string, filename = ''): Promise<an
         }
         return true;
     } catch(err) {
-        Logger.error(`here  ugh`);
         return false;
     }
 }

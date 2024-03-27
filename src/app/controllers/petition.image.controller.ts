@@ -3,6 +3,7 @@ import Logger from "../../config/logger";
 import * as users from "../models/user.model";
 import * as image from "../models/image.model";
 import * as petitions from "../models/petition.model";
+import {decodeToken} from "../services/session";
 
 const validFileTypes: string[] = ["image/png", "image/jpeg", "image/gif"];
 
@@ -11,26 +12,30 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
     try{
         const id = req.params.id;
         const result = await image.getImage(endpoint, id);
-        if (!result || result.binary === null) {
-            Logger.http(`user not found`)
-            res.statusMessage = "Not Found. No user with specified ID, or user has no image";
+        if (!result) {
+            Logger.http(`petition not found`)
+            res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
         }
-        if (result.binary) {
-            const fileExtension = result.filename.split('.')[1];
-            Logger.error(`image/${fileExtension}`)
-            if (!(validFileTypes.includes("image/"+fileExtension))) {
-                res.statusMessage = "Internal Server Error";
-                res.status(500).send();
-                return;
-            }
-            res.setHeader('Content-Type', 'image/'+fileExtension);
-            Logger.http(`sending image`)
-            res.statusMessage = "OK";
-            res.status(200).send(result.binary);
+        if (result.binary === null) {
+            Logger.http(`petition image not found`)
+            res.statusMessage = "Not Found. Petition has no image";
+            res.status(404).send();
             return;
         }
+        const fileExtension = result.filename.split('.')[1];
+        Logger.error(`image/${fileExtension}`)
+        if (!(validFileTypes.includes("image/"+fileExtension))) {
+            res.statusMessage = "Internal Server Error";
+            res.status(500).send();
+            return;
+        }
+        res.setHeader('Content-Type', 'image/'+fileExtension);
+        Logger.http(`sending image`)
+        res.statusMessage = "OK";
+        res.status(200).send(result.binary);
+        return;
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
@@ -44,16 +49,18 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
         const id = req.params.id;
         const result = await petitions.getPetition(id);
         if (!(result.ownerId)) {
-            Logger.http(`user not found`)
-            res.statusMessage = "Not found. No such user with ID given";
+            Logger.http(`petition not found`)
+            res.statusMessage = "Not Found. No petition found with id";
             res.status(404).send();
             return;
         }
         const ownerId = result.ownerId;
         const token = req.header('X-Authorization');
+        const tokenId = await decodeToken(token);
+        Logger.info(`${tokenId}`)
         if (!await users.checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for user`)
-            res.statusMessage = "Forbidden. Can not change another user's profile photo";
+            res.statusMessage = "Forbidden. Only the owner of a petition can change the hero image";
             res.status(403).send();
             return;
         }
