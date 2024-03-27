@@ -1,8 +1,5 @@
 import { getPool } from '../../config/db';
 import Logger from '../../config/logger';
-import { ResultSetHeader } from 'mysql2';
-import { compare } from '../services/passwords';
-import {createToken, decodeToken} from "../services/session";
 
 const dateFormatter: Intl.DateTimeFormat = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
