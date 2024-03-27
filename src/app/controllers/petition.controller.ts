@@ -1,9 +1,8 @@
-import * as users from '../models/user.model';
 import * as petitions from '../models/petition.model';
 import {Request, Response} from "express";
 import Logger from '../../config/logger';
 import * as schemas from '../resources/schemas.json';
-import {createToken, decodeToken} from "../services/session";
+import {checkToken, decodeToken} from "../services/session";
 import {validate} from "../services/validation";
 
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
@@ -69,18 +68,22 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
                 }
             }
         }
-        const validation = await validate(
-            schemas.petition_post,
-            req.body);
+        const validation = await validate(schemas.petition_post, req.body);
         if (validation !== true) {
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);
             return;
         }
-        const tokenCoded = req.header('X-Authorization');
-        const id = await decodeToken(tokenCoded);
+        const token = req.header('X-Authorization');
+        if (!token) {
+            Logger.http(`token not provided`)
+            res.statusMessage = "Unauthorized";
+            res.status(401).send();
+            return;
+        }
+        const id = await decodeToken(token);
         Logger.info(`id ${id}`)
-        if (!await users.checkToken(id, tokenCoded)){
+        if (!await checkToken(id, token)){
             Logger.http(`token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
@@ -108,6 +111,12 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
 
 const editPetition = async (req: Request, res: Response): Promise<void> => {
     try{
+        const validation = await validate(schemas.petition_patch, req.body);
+        if (validation !== true) {
+            Logger.http(`Failed ajv validation. ${validation.toString()}`)
+            res.status(400).send(`Bad request. Invalid information`);
+            return;
+        }
         const getResult = await petitions.getPetition(req.params.id);
         if (!getResult) {
             Logger.http(`petition not found`)
@@ -132,16 +141,16 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         if (!isNaN(req.body.categoryId)) {
             req.body.categoryId = parseInt(req.body.categoryId, 10);
         }
-        const validation = await validate(schemas.petition_patch, req.body);
-        if (validation !== true) {
-            Logger.http(`Failed ajv validation. ${validation.toString()}`)
-            res.status(400).send(`Bad request. Invalid information`);
+        const token = req.header('X-Authorization');
+        if (!token) {
+            Logger.http(`token not provided`)
+            res.statusMessage = "Unauthorized";
+            res.status(401).send();
             return;
         }
-        const token = req.header('X-Authorization');
         const petition = await petitions.getPetition(req.params.id);
         const ownerId = petition.ownerId;
-        if (!await users.checkToken(`${ownerId}`, token)) {
+        if (!await checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Forbidden. Only the owner of a petition may change it";
             res.status(403).send();
@@ -185,7 +194,7 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
         }
         const petition = await petitions.getPetition(req.params.id);
         const ownerId = petition.ownerId;
-        if (!await users.checkToken(`${ownerId}`, token)) {
+        if (!await checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Forbidden. Only the owner of a petition may delete it";
             res.status(403).send();
@@ -199,8 +208,8 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         Logger.http(`deleted petition`);
-        res.statusMessage = "No Content";
-        res.status(204).send(result);
+        res.statusMessage = "OK";
+        res.status(200).send(result);
         return;
     } catch (err) {
         Logger.error(err);

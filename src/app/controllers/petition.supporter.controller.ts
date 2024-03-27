@@ -3,7 +3,7 @@ import Logger from "../../config/logger";
 import * as petitions from "../models/petition.model";
 import * as supporters from "../models/petition.supporter.model";
 import * as users from "../models/user.model";
-import {decodeToken} from "../services/session";
+import {decodeToken, checkToken} from "../services/session";
 import {validate} from "../services/validation";
 import * as schemas from "../resources/schemas.json";
 
@@ -30,17 +30,17 @@ const getAllSupportersForPetition = async (req: Request, res: Response): Promise
 
 const addSupporter = async (req: Request, res: Response): Promise<void> => {
     try{
+        const validation = await validate(schemas.support_post, req.body);
+        if (validation !== true) {
+            Logger.http(`Failed ajv validation. ${validation.toString()}`)
+            res.status(400).send(`Bad request. Invalid information`);
+            return;
+        }
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
             Logger.http(`petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
-            return;
-        }
-        const validation = await validate(schemas.support_post, req.body);
-        if (!validation) {
-            Logger.http(`Failed ajv validation. ${validation.toString()}`)
-            res.status(400).send(`Bad request. Invalid information`);
             return;
         }
         let existsFlag = false;
@@ -64,14 +64,14 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const id = Number(await decodeToken(token));
-        if (!await users.checkToken(`${id}`, token)) {
+        if (!await checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
-        if (await users.checkToken(`${ownerId}`, token)) {
+        if (await checkToken(`${ownerId}`, token)) {
             Logger.http(`token valid for owner`)
             res.statusMessage = "Forbidden. Cannot support your own petition";
             res.status(403).send();

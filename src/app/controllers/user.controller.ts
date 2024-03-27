@@ -3,34 +3,27 @@ import {Request, Response} from "express";
 import Logger from '../../config/logger';
 import * as schemas from '../resources/schemas.json';
 import {hash} from '../services/passwords';
-import {decodeToken} from "../services/session";
+import {decodeToken, checkToken} from "../services/session";
 import {validate} from "../services/validation";
 
 
 const register = async (req: Request, res: Response): Promise<void> => {
-
     Logger.http(`POST create a user with name: ${req.body.firstName} ${req.body.lastName}, email: ${req.body.email}`)
-
     try{
-        const validation = await validate(
-            schemas.user_register,
-            req.body);
+        const validation = await validate(schemas.user_register, req.body);
         if (validation !== true) {
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);
             return;
         }
-        const firstName = req.body.firstName;
-        const lastName = req.body.lastName;
-        const email = req.body.email;
-        if (!await users.checkUnique('email', email)) {
+        if (!await users.checkUnique('email', req.body.email)) {
             Logger.http(`email already in use`)
             res.status(403).send('Forbidden. Email already in use');
             return;
         }
         const hashedPassword = await hash(req.body.password);
-        const result = await users.registerUser(email, firstName, lastName, hashedPassword);
-        res.status(201).send(`Created. id: ${result.insertId}`);
+        const result = await users.registerUser(req.body, hashedPassword);
+        res.status(201).send({"userId": result.insertId});
     } catch (err) {
         res.statusMessage = "Internal Server Error";
         res.status(500).send();
@@ -41,17 +34,13 @@ const register = async (req: Request, res: Response): Promise<void> => {
 const login = async (req: Request, res: Response): Promise<void> => {
     try {
         Logger.http(`POST log in user: ${req.body.email}`)
-        const validation = await validate(
-            schemas.user_login,
-            req.body);
+        const validation = await validate(schemas.user_login, req.body);
         if (validation !== true) {
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);
             return;
         }
-        const email = req.body.email;
-        const password = req.body.password;
-        const result = await users.loginUser(email, password);
+        const result = await users.loginUser(req.body);
         if (!result) {
             Logger.http(`Result is empty`);
             res.status(401).send(`UnAuthorized. Incorrect email/password`);
@@ -77,7 +66,7 @@ const logout = async (req: Request, res: Response): Promise<void> => {
     try{
         const tokenCoded = req.header('X-Authorization');
         const id = await decodeToken(tokenCoded);
-        if (!await users.checkToken(`${id}`,tokenCoded)) {
+        if (!await checkToken(`${id}`,tokenCoded)) {
             res.statusMessage = "Unauthorized. Cannot log out if you are not authenticated";
             res.status(401).send();
             return;
@@ -98,7 +87,7 @@ const logout = async (req: Request, res: Response): Promise<void> => {
 const view = async (req: Request, res: Response): Promise<void> => {
     try{
         const tokenCoded = req.header('X-Authorization');
-        const authenticated = await users.checkToken(`${req.params.id}`, tokenCoded);
+        const authenticated = await checkToken(`${req.params.id}`, tokenCoded);
         const result = await users.viewUser(req.params.id, authenticated);
         if (result.length === 0) {
             res.status(404).send('Not Found. No user with specified ID');
@@ -117,17 +106,21 @@ const view = async (req: Request, res: Response): Promise<void> => {
 
 const update = async (req: Request, res: Response): Promise<void> => {
     try{
-        const validation = await validate(
-            schemas.user_edit,
-            req.body);
+        const validation = await validate(schemas.user_edit, req.body);
         if (validation !== true) {
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);
             return;
         }
-        const tokenCoded = req.header('X-Authorization');
-        const id = await decodeToken(tokenCoded);
-        if (!await users.checkToken(`${req.params.id}`, tokenCoded)){
+        const token = req.header('X-Authorization');
+        if (!token) {
+            Logger.http(`token not provided`)
+            res.statusMessage = "Unauthorized";
+            res.status(401).send();
+            return;
+        }
+        const id = await decodeToken(token);
+        if (!await checkToken(`${req.params.id}`, token)){
             Logger.http(`token not valid for user`)
             res.statusMessage = "Forbidden. Can not edit another user's information";
             res.status(403).send();
@@ -154,8 +147,8 @@ const update = async (req: Request, res: Response): Promise<void> => {
                 updateData.oldPassword = req.body.currentPassword;
             }
         }
-        updateData.first_name = req.body.firstName;
-        updateData.last_name = req.body.lastName;
+        updateData.firstName = req.body.firstName;
+        updateData.lastName = req.body.lastName;
         if (req.body.email) {
             if (!await users.checkUnique('email', req.body.email)) {
                 Logger.http(`email already in use`)

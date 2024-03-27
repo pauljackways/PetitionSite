@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import Logger from "../../config/logger";
-import {error} from "winston";
+import {getPool} from "../../config/db";
 dotenv.config();
 
 
@@ -32,4 +32,23 @@ const decodeToken = async (token: string): Promise<null | any> => {
     }
 }
 
-export { createToken, decodeToken };
+const checkToken = async (reqId: string, userToken: string): Promise<boolean> => {
+    Logger.http(`checking token ${userToken}`)
+    try {
+        const id = await decodeToken(userToken);
+        if (reqId !== id) {
+            return false;
+        }
+        const conn = await getPool().getConnection();
+        const getQuery = 'select auth_token from user where id = ?';
+        const [ databaseToken ] = await conn.query( getQuery, [ id ] );
+        if (!(databaseToken.length > 0)) {
+            return false;
+        }
+        return databaseToken[0].auth_token === userToken;
+    } catch (err) {
+        Logger.error(err);
+    }
+}
+
+export { createToken, decodeToken, checkToken };

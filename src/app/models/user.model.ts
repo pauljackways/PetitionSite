@@ -2,14 +2,14 @@ import { getPool } from '../../config/db';
 import Logger from '../../config/logger';
 import { ResultSetHeader } from 'mysql2';
 import { compare } from '../services/passwords';
-import {createToken, decodeToken} from "../services/session";
+import {createToken, checkToken} from "../services/session";
 
-const registerUser = async (email: string, firstName: string, lastName: string, password: string): Promise<ResultSetHeader> => {
+const registerUser = async (body: any, password: string): Promise<ResultSetHeader> => {
     try {
-        Logger.info(`Adding user ${firstName} ${lastName} to the database`);
+        Logger.info(`Adding user ${body.firstName} ${body.lastName} to the database`);
         const conn = await getPool().getConnection();
         const query = 'insert into user (email, first_name, last_name, password) values (?, ?, ?, ?)';
-        const [ result ] = await conn.query( query, [ email, firstName, lastName, password ] );
+        const [ result ] = await conn.query( query, [ body.email, body.firstName, body.lastName, password ] );
         await conn.release();
         return result;
     } catch(err) {
@@ -17,28 +17,28 @@ const registerUser = async (email: string, firstName: string, lastName: string, 
     }
 }
 
-const loginUser = async (email: string, password: string): Promise<any> => {
+const loginUser = async (body: any): Promise<any> => {
     try {
-        Logger.info(`Authenticating user with email: ${email}`);
+        Logger.info(`Authenticating user with email: ${body.email}`);
         const conn = await getPool().getConnection();
         const getQuery = 'select password, id from user where email = ?';
-        const [ result ] = await conn.query( getQuery, [ email ] );
+        const [ result ] = await conn.query( getQuery, [ body.email ] );
         if (!(result.length > 0)) {
             Logger.info(`no user with that email`);
             await conn.release();
             return false;
         }
-        if (!await compare(password, result[0].password)) {
+        if (!await compare(body.password, result[0].password)) {
             Logger.info(`passwords don't match`);
             await conn.release();
             return false;
-        } else {
-            Logger.info(`passwords match`);
-            result[0].token = createToken(`${result[0].id}`);
-            const setQuery = 'update user set auth_token = ? where id = ?';
-            const [ tokenSet ] = await conn.query( setQuery, [ result[0].token, result[0].id ] );
-            return result[0];
         }
+        Logger.info(`passwords match`);
+        result[0].token = createToken(`${result[0].id}`);
+        const setQuery = 'update user set auth_token = ? where id = ?';
+        const [ tokenSet ] = await conn.query( setQuery, [ result[0].token, result[0].id ] );
+        await conn.release();
+        return result[0];
     } catch(err) {
         Logger.error(err);
     }
@@ -69,12 +69,12 @@ const viewUser = async (id: string, authenticated: boolean): Promise<any> => {
         const conn = await getPool().getConnection();
         if (authenticated) {
             Logger.info(`Getting user ${id} from the database (authenticated)`);
-            const query = 'select email, first_name, last_name from user where id = ?';
+            const query = 'select email, first_name as firstName, last_name as lastName from user where id = ?';
             const [ result ] = await conn.query( query, [ id ] );
             await conn.release();
             return result;
         } else {
-            const query = 'select first_name, last_name from user where id = ?';
+            const query = 'select first_name as firstName, last_name as lastName from user where id = ?';
             const [ result ] = await conn.query( query, [ id ] );
             await conn.release();
             return result;
@@ -146,23 +146,6 @@ const checkUnique = async (key: string, value: string): Promise<boolean> => {
     }
 }
 
-const checkToken = async (reqId: string, userToken: string): Promise<boolean> => {
-    Logger.http(`checking token ${userToken}`)
-    try {
-        const id = await decodeToken(userToken);
-        if (reqId !== id) {
-            return false;
-        }
-        const conn = await getPool().getConnection();
-        const getQuery = 'select auth_token from user where id = ?';
-        const [ databaseToken ] = await conn.query( getQuery, [ id ] );
-        if (!(databaseToken.length > 0)) {
-            return false;
-        }
-        return databaseToken[0].auth_token === userToken;
-    } catch (err) {
-        Logger.error(err);
-    }
-}
+
 
 export {registerUser, loginUser, logoutUser, viewUser, updateUser, checkUnique, checkToken}

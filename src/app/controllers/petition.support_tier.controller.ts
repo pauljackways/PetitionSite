@@ -3,13 +3,19 @@ import Logger from "../../config/logger";
 import * as petitions from "../models/petition.model";
 import {validate} from "../services/validation";
 import * as schemas from "../resources/schemas.json";
-import {decodeToken} from "../services/session";
-import * as users from "../models/user.model";
+import {decodeToken, checkToken} from "../services/session";
 import * as supporters from "../models/petition.supporter.model";
 import * as tiers from "../models/petition.support_tier.model";
 
 const addSupportTier = async (req: Request, res: Response): Promise<void> => {
     try{
+        const validation = await validate(schemas.support_tier_post, req.body);
+        if (validation !== true) {
+            // I have tried everything I could to get ajv to filter strings and only allow integers, but it never works.
+            Logger.http(`Failed ajv validation. ${validation.toString()}`)
+            res.status(400).send(`Bad request. Invalid information`);
+            return;
+        }
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
             Logger.http(`petition not found`)
@@ -25,14 +31,14 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const id = Number(await decodeToken(token));
-        if (!await users.checkToken(`${id}`, token)) {
+        if (!await checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
-        if (!await users.checkToken(`${ownerId}`, token)) {
+        if (!await checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for owner`)
             res.statusMessage = "Forbidden. Only the owner of a petition may modify it";
             res.status(403).send();
@@ -54,15 +60,9 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
             res.status(403).send();
             return;
         }
-        const validation = await validate(schemas.support_tier_post, req.body);
-        if (validation !== true) {
-            Logger.http(`Failed ajv validation. ${validation.toString()}`)
-            res.status(400).send(`Bad request. Invalid information`);
-            return;
-        }
         if (await tiers.addSupportTier(req.params.id, req.body)) {
             res.statusMessage = "OK";
-            res.status(200).send();
+            res.status(201).send();
             return;
         }
         Logger.error(`Insert into support_tier failed`)
@@ -79,6 +79,12 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
 
 const editSupportTier = async (req: Request, res: Response): Promise<void> => {
     try{
+        const validation = await validate(schemas.support_tier_patch, req.body);
+        if (validation !== true) {
+            Logger.http(`Failed ajv validation. ${validation.toString()}`)
+            res.status(400).send(`Bad request. Invalid information`);
+            return;
+        }
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
             Logger.http(`petition not found`)
@@ -113,20 +119,21 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const id = Number(await decodeToken(token));
-        if (!await users.checkToken(`${id}`, token)) {
+        if (!await checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
-        if (!await users.checkToken(`${ownerId}`, token)) {
+        if (!await checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for owner`)
             res.statusMessage = "Forbidden. Only the owner of a petition may modify it";
             res.status(403).send();
             return;
         }
-        const supportersResult = await supporters.getAllSupportersForPetition(req.params.id);
+        const supportersResult = await supporters.getAllSupportersForPetition(req.params.tierId);
+        Logger.error(`No error yet`)
         for (const pledge of supportersResult) {
             if (pledge.supportTierId === Number(req.params.tierId)) {
                 Logger.http(`supporter exists for tier`)
@@ -134,12 +141,6 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
                 res.status(403).send();
                 return;
             }
-        }
-        const validation = await validate(schemas.support_tier_patch, req.body);
-        if (validation !== true) {
-            Logger.http(`Failed ajv validation. ${validation.toString()}`)
-            res.status(400).send(`Bad request. Invalid information`);
-            return;
         }
         if (await tiers.editSupportTier(req.params.tierId, req.body)) {
             res.statusMessage = "OK";
@@ -190,14 +191,14 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
             return;
         }
         const id = Number(await decodeToken(token));
-        if (!await users.checkToken(`${id}`, token)) {
+        if (!await checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
-        if (!await users.checkToken(`${ownerId}`, token)) {
+        if (!await checkToken(`${ownerId}`, token)) {
             Logger.http(`token not valid for owner`)
             res.statusMessage = "Forbidden. Only the owner of a petition may delete it";
             res.status(403).send();

@@ -52,10 +52,12 @@ const editSupportTier = async (id: string, body: any): Promise<any> => {
             values.push(body.cost);
             query += 'cost = ?'
         }
+        query += ' where id = ?';
         values.push(id);
+
         const [ result ] = await conn.query( query, values );
         await conn.release();
-        return result;
+        return result.affectedRows;
     } catch(err) {
         Logger.error(err);
     }

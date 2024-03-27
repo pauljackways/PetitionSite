@@ -36,8 +36,7 @@ const getAllSupportersForPetition = async (id: string): Promise<any> => {
         const query = 'select supporter.id as supportId, support_tier_id as supportTierId, message, user_id as' +
             ' supporterId, user.first_name as supporterFirstName, user.last_name as supporterLastName, timestamp' +
             ' from supporter left join user on supporter.user_id = user.id join petition on supporter.petition_id =' +
-            ' petition.id' +
-            ' where petition.id = ?';
+            ' petition.id where petition.id = ? order by timestamp desc';
         const [ result ] = await conn.query( query, id );
         await conn.release();
         return result;

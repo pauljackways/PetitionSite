@@ -2,6 +2,8 @@ import {Request, Response} from "express";
 import Logger from "../../config/logger";
 import * as users from "../models/user.model";
 import * as image from "../models/image.model";
+import {checkToken, decodeToken} from "../services/session";
+
 const validFileTypes: string[] = ["image/png", "image/jpeg", "image/gif"];
 const endpoint = 'user';
 const getImage = async (req: Request, res: Response): Promise<void> => {
@@ -47,7 +49,13 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const token = req.header('X-Authorization');
-        if (!await users.checkToken(`${id}`, token)) {
+        if (!token) {
+            Logger.http(`token not provided`)
+            res.statusMessage = "Unauthorized";
+            res.status(401).send();
+            return;
+        }
+        if (!await checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Forbidden. Can not change another user's profile photo";
             res.status(403).send();
@@ -62,22 +70,16 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
         }
         const imageData: Buffer = req.body;
         if (await image.setImage(endpoint, id, contentType, imageData)) {
-            if (result > 0) {
-                Logger.http(`updated image`)
-                res.statusMessage = "OK. Image updated";
-                res.status(200).send();
-                return;
-            } else {
-                Logger.http(`updated image`)
-                res.statusMessage = "Created. New image created";
-                res.status(201).send();
-                return;
-            }
+            Logger.http(`updated image`)
+            res.statusMessage = "OK. Image updated";
+            res.status(200).send();
+            return;
+        } else {
+            Logger.http(`updated image`)
+            res.statusMessage = "Created. New image created";
+            res.status(201).send();
+            return;
         }
-        Logger.http(`how did we get here?`)
-        res.statusMessage = "Internal Server Error";
-        res.status(500).send();
-        return;
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
@@ -96,7 +98,13 @@ const deleteImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const token = req.header('X-Authorization');
-        if (!await users.checkToken(`${id}`, token)) {
+        if (!token) {
+            Logger.http(`token not provided`)
+            res.statusMessage = "Unauthorized";
+            res.status(401).send();
+            return;
+        }
+        if (!await checkToken(`${id}`, token)) {
             Logger.http(`token not valid for user`)
             res.statusMessage = "Can not delete another user's profile photo";
             res.status(403).send();

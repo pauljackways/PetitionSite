@@ -158,7 +158,7 @@
         "nullable": false
       },
       "categoryId": {
-        "type": "number",
+        "type": "integer",
         "minimum": 0,
         "nullable": false
       },
@@ -232,8 +232,7 @@
     "type": "object",
     "properties": {
       "supportTierId": {
-        "type": "number",
-        "format": "integer",
+        "type": "integer",
         "minimum": 1,
         "nullable": false
       },

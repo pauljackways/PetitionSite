@@ -50,6 +50,9 @@ const getAllPetitions = async (params: any): Promise<any> => {
             Logger.http(`${query}`);
         }
         if (params.q) {
+            if (params.q === "") {
+                return false;
+            }
             values.push(`%${params.q}%`);
             values.push(`%${params.q}%`);
             query += `(petition.description like ? or petition.title like ?) and `;
@@ -84,7 +87,7 @@ const getAllPetitions = async (params: any): Promise<any> => {
                 query += 'petition.creation_date ASC';
                 break;
             default:
-                query += 'petition.creation_date ASC';
+                return false;
         }
         Logger.http(`${query}`)
         Logger.http(`${values}`)

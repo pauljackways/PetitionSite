@@ -31,8 +31,10 @@ const getImage = async (table: string, id: string): Promise<any> => {
 const setImage = async (table: string, id: string, MIME: string, imageData: Buffer): Promise<any> => {
     try {
         Logger.info(`Adding / replacing profile photo to the database`);
-        const filename = `${table}${id}.${MIME.substring(6)}`;
+        const filename = `${table}_${id}.${MIME.substring(6)}`;
+        let existsFlag = false;
         if (fs.existsSync(filePath+filename)) {
+            existsFlag = true;
             await deleteImage(table, id, filename);
         }
         await fs.promises.writeFile((filePath+filename), imageData, { flag: 'wx' });
@@ -40,7 +42,7 @@ const setImage = async (table: string, id: string, MIME: string, imageData: Buff
         const query = 'update ' + table + ' set image_filename = ? where id = ?';
         const [ result ] = await conn.query( query, [ filename, id ] );
         await conn.release();
-        return result;
+        return existsFlag;
     } catch(err) {
         Logger.error(err);
     }
