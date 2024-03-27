@@ -265,8 +265,7 @@
         "nullable": false
       },
       "cost": {
-        "type": "number",
-        "format": "integer",
+        "type": "integer",
         "minimum": 0,
         "nullable": false
       }
@@ -294,8 +293,7 @@
         "nullable": false
       },
       "cost": {
-        "type": "number",
-        "format": "integer",
+        "type": "integer",
         "minimum": 0,
         "nullable": false
       }

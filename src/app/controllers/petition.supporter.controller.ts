@@ -30,7 +30,6 @@ const getAllSupportersForPetition = async (req: Request, res: Response): Promise
 
 const addSupporter = async (req: Request, res: Response): Promise<void> => {
     try{
-        Logger.info(`here`)
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
             Logger.http(`petition not found`)
