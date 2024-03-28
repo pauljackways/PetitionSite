@@ -49,9 +49,9 @@ const logoutUser = async (id: string): Promise<boolean> => {
         Logger.info(`logging out user ${id}`);
         const conn = await getPool().getConnection();
         const query = 'update user set auth_token = null where id = ?';
-        const [ updateResult ] = await conn.query( query, [ id ] );
+        const [ updateResult ] = await conn.query( query, [ Number(id) ] );
         const deletedQuery = 'select auth_token from user where id = ?';
-        const [ deletedResult ] = await conn.query( deletedQuery, [ id ] );
+        const [ deletedResult ] = await conn.query( deletedQuery, [ Number(id) ] );
         await conn.release();
         Logger.info(`auth token${deletedResult[0].auth_token}`);
         if (deletedResult[0].auth_token) {
@@ -70,7 +70,7 @@ const viewUser = async (id: string, authenticated: boolean): Promise<any> => {
         if (authenticated) {
             Logger.info(`Getting user ${id} from the database (authenticated)`);
             const query = 'select email, first_name as firstName, last_name as lastName from user where id = ?';
-            const [ result ] = await conn.query( query, [ id ] );
+            const [ result ] = await conn.query( query, [ Number(id) ] );
             await conn.release();
             return result;
         } else {
@@ -86,42 +86,41 @@ const viewUser = async (id: string, authenticated: boolean): Promise<any> => {
 const updateUser = async (id: string, updateData: Record<string, any>): Promise<any> => {
     try {
         const conn = await getPool().getConnection();
-        const values: string[] = [];
+        const values: any[] = [];
         let query = 'update user set ';
         if (updateData.oldPassword) {
             const passQuery = 'select password from user where id = ?';
             const [ currentPassword ] = await conn.query( passQuery, id );
-            Logger.info(`Checking ${id} oldpassword ${updateData.oldPassword} ${currentPassword[0].password} matches db`)
-            if (!await compare(updateData.oldPassword, currentPassword[0].password)) {
+            if (!await compare(String(updateData.oldPassword), String(currentPassword[0].password))) {
                 await conn.release();
                 return -1;
             }
-            values.push(updateData.password);
+            values.push(String(updateData.password));
             query += 'password = ?'
         }
         if (updateData.email) {
             if (values.length > 0) {
                 query += ', ';
             }
-            values.push(updateData.email);
+            values.push(String(updateData.email));
             query += 'email = ?'
         }
         if (updateData.firstName) {
             if (values.length > 0) {
                 query += ', ';
             }
-            values.push(updateData.firstName);
+            values.push(String(updateData.firstName));
             query += 'first_name = ?'
         }
         if (updateData.lastName) {
             if (values.length > 0) {
                 query += ', ';
             }
-            values.push(updateData.lastName);
+            values.push(String(updateData.lastName));
             query += 'last_name = ?'
         }
         query += ' where id = ?'
-        values.push(id);
+        values.push(Number(id));
         Logger.http(`${query} query`)
         const [ result ] = await conn.query( query, values );
         await conn.release();
@@ -139,7 +138,6 @@ const checkUnique = async (key: string, value: string): Promise<boolean> => {
         const query = 'select ' + key + ' from user where ' + key + ' = ?';
         const [ result ] = await conn.query( query, value );
         await conn.release();
-        Logger.http(`${!(result.length > 0)} ${result.length} ${result} result`)
         return !(result.length > 0);
     } catch(err) {
         Logger.error(err);

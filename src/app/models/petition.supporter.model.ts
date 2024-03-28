@@ -21,7 +21,7 @@ const addSupporter = async (supporter: any): Promise<any> => {
         const conn = await getPool().getConnection();
         const query = 'insert into supporter (petition_id, support_tier_id, user_id, message, timestamp) values (?,' +
             ' ?, ?, ?, ?)';
-        const result = await conn.query( query, [ supporter.petition, supporter.supportTierId, supporter.id, supporter.message, timestamp ] );
+        const result = await conn.query( query, [ Number(supporter.petitionId), Number(supporter.supportTierId), Number(supporter.id), String(supporter.message), timestamp ] );
         await conn.release();
         return true;
     } catch(err) {
@@ -37,7 +37,7 @@ const getAllSupportersForPetition = async (id: string): Promise<any> => {
             ' supporterId, user.first_name as supporterFirstName, user.last_name as supporterLastName, timestamp' +
             ' from supporter left join user on supporter.user_id = user.id join petition on supporter.petition_id =' +
             ' petition.id where petition.id = ? order by timestamp desc';
-        const [ result ] = await conn.query( query, id );
+        const [ result ] = await conn.query( query, Number(id) );
         await conn.release();
         return result;
     } catch(err) {

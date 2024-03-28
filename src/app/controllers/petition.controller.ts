@@ -7,9 +7,7 @@ import {validate} from "../services/validation";
 
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
     try{
-        const validation = await validate(
-            schemas.petition_search,
-            req.body);
+        const validation = await validate(schemas.petition_search, req.body);
         if (validation !== true) {
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);

@@ -101,7 +101,7 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
         }
         const supporterData = req.body;
         supporterData.id = id;
-        supporterData.petition = req.params.id;
+        supporterData.petitionId = req.params.id;
         if (await supporters.addSupporter(req.body)) {
             res.statusMessage = "Created";
             res.status(201).send();

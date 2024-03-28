@@ -5,7 +5,7 @@ const addSupportTier = async (id: string, body: any): Promise<any> => {
     try {
         const conn = await getPool().getConnection();
         const query = 'insert into support_tier (title, description, cost, petition_id) values (?, ?, ?, ?)';
-        const [ result ] = await conn.query( query, [body.title, body.description, body.cost, id] );
+        const [ result ] = await conn.query( query, [String(body.title), String(body.description), Number(body.cost), Number(id)] );
         await conn.release();
         return result;
     } catch(err) {
@@ -17,7 +17,7 @@ const deleteSupportTier = async (id: string): Promise<any> => {
     try {
         const conn = await getPool().getConnection();
         const query = 'delete from support_tier where id = ?';
-        const [ result ] = await conn.query( query, id );
+        const [ result ] = await conn.query( query, Number(id) );
         await conn.release();
         return result;
     } catch(err) {
@@ -30,26 +30,26 @@ const editSupportTier = async (id: string, body: any): Promise<any> => {
     try {
         const conn = await getPool().getConnection();
         let query = 'update support_tier set ';
-        const values: string[] = [];
+        const values: any[] = [];
         if (body.title) {
             if (values.length > 0) {
                 query += ', ';
             }
-            values.push(body.title);
+            values.push(String(body.title));
             query += 'title = ?'
         }
         if (body.description) {
             if (values.length > 0) {
                 query += ', ';
             }
-            values.push(body.description);
+            values.push(String(body.description));
             query += 'description = ?'
         }
         if (body.cost) {
             if (values.length > 0) {
                 query += ', ';
             }
-            values.push(body.cost);
+            values.push(Number(body.cost));
             query += 'cost = ?'
         }
         query += ' where id = ?';

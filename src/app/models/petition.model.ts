@@ -15,18 +15,17 @@ const getAllPetitions = async (params: any): Promise<any> => {
     Logger.http(`getting petitions`)
     try {
         const conn = await getPool().getConnection();
-        const values: string[] = [];
+        const values: any[] = [];
         let query = 'select petition.id as petitionId, petition.title, petition.category_id as categoryId,' +
             ' petition.creation_date as creationDate, petition.owner_id as ownerId, user.first_name as' +
             ' ownerFirstName, user.last_name as ownerLastName, count(supporter.petition_id) as numberOfSupporters,' +
             ' min(support_tier.cost) as supportingCost from petition left join supporter on' +
             ' petition.id=supporter.petition_id left join support_tier on petition.id=support_tier.petition_id' +
-            ' left join' +
-            ' user on petition.owner_id = user.id ';
+            ' left join user on petition.owner_id = user.id ';
         if (params.categoryIds) {
             query += 'join category on category.id=petition.category_id where (';
             for (let i = 0; i < params.categoryIds.length; i++) {
-                values.push(params.categoryIds[i]);
+                values.push(Number(params.categoryIds[i]));
                 query += 'category.id = ?';
                 if (i === (params.categoryIds.length - 1)) {
                     query += ') and ';
@@ -40,57 +39,59 @@ const getAllPetitions = async (params: any): Promise<any> => {
             Logger.http(`${query}`)
         }
         if (params.ownerId) {
-            values.push(params.ownerId);
+            values.push(Number(params.ownerId));
             query += 'petition.owner_id = ? and ';
             Logger.http(`${query}`);
         }
         if (params.supporterId) {
-            values.push(params.supporterId);
+            values.push(Number(params.supporterId));
             query += 'supporter.user_id = ? and ';
             Logger.http(`${query}`);
         }
+        if (params.q === '') {
+            Logger.info(`q is empty string`)
+            return false;
+        }
         if (params.q) {
-            if (params.q === "") {
-                return false;
-            }
             values.push(`%${params.q}%`);
             values.push(`%${params.q}%`);
             query += `(petition.description like ? or petition.title like ?) and `;
-            Logger.http(`${query}`);
         }
         query += '1=1 GROUP BY petition.id, petition.title, petition.category_id, petition.creation_date,' +
             ' petition.owner_id ';
         if (params.supportingCost) {
-            values.push(params.supportingCost);
+            values.push(Number(params.supportingCost));
             query += 'having MIN(support_tier.cost) <= ? ';
             Logger.http(`${query}`);
         }
         query += 'order by '
         Logger.http(`${query}`)
-        switch (params.sortBy) {
-            case 'ALPHABETICAL_ASC':
-                query += 'petition.title ASC';
-                break;
-            case 'ALPHABETICAL_DESC':
-                query += 'petition.title DESC';
-                break;
-            case 'COST_ASC':
-                query += 'supportingCost ASC';
-                break;
-            case 'COST_DESC':
-                query += 'supportingCost DESC';
-                break;
-            case 'CREATED_DESC':
-                query += 'petition.creation_date DESC';
-                break;
-            case 'CREATED_ASC':
-                query += 'petition.creation_date ASC';
-                break;
-            default:
-                return false;
+        if (params.sortBy) {
+            switch (params.sortBy) {
+                case 'ALPHABETICAL_ASC':
+                    query += 'petition.title ASC';
+                    break;
+                case 'ALPHABETICAL_DESC':
+                    query += 'petition.title DESC';
+                    break;
+                case 'COST_ASC':
+                    query += 'supportingCost ASC';
+                    break;
+                case 'COST_DESC':
+                    query += 'supportingCost DESC';
+                    break;
+                case 'CREATED_DESC':
+                    query += 'petition.creation_date DESC';
+                    break;
+                case 'CREATED_ASC':
+                    query += 'petition.creation_date ASC';
+                    break;
+                default:
+                    return false;
+            }
+        } else {
+            query += 'petition.creation_date ASC';
         }
-        Logger.http(`${query}`)
-        Logger.http(`${values}`)
 
         const [ result ] = await conn.query( query, values);
         await conn.release();
@@ -112,8 +113,7 @@ const getAllPetitions = async (params: any): Promise<any> => {
                 break;
             }
         }
-        paginatedResult.push({count: result.length});
-        return paginatedResult;
+        return {"petitions": paginatedResult, "count": result.length};
     } catch(err) {
         Logger.error(err);
     }
@@ -175,10 +175,10 @@ const addPetition = async (id: number, body: any): Promise<any> => {
         const conn = await getPool().getConnection();
         const petitionQuery = 'insert into petition (creation_date, owner_id, title, description, category_id) values' +
             ' (?, ?, ?, ?, ?)';
-        const [ petitionResult ] = await conn.query( petitionQuery, [creationDate, id, body.title, body.description, body.categoryId] );
+        const [ petitionResult ] = await conn.query( petitionQuery, [creationDate, Number(id), String(body.title), String(body.description), Number(body.categoryId)] );
         const supportTierQuery = 'insert into support_tier (petition_id, title, description, cost) values (?, ?, ?, ?)';
         for (const item of body.supportTiers) {
-            await conn.query( supportTierQuery, [petitionResult.insertId, item.title, item.description, item.cost] );
+            await conn.query( supportTierQuery, [Number(petitionResult.insertId), String(item.title), String(item.description), Number(item.cost)] );
         }
         await conn.release();
         petitionResult.supportTiers = body.supportTiers;
@@ -193,7 +193,7 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             return true; // No changes were made
         }
         let query = 'update petition set ';
-        const values: string[] = [];
+        const values: any[] = [];
         if (body.categoryId) {
             const categories = await getCategories();
             let categoryFlag = 0;
@@ -209,7 +209,7 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             if (values.length > 0) {
                 query += ', '
             }
-            values.push(body.categoryId);
+            values.push(Number(body.categoryId));
             query += 'category_id = ? ';
             Logger.http(`${query}`);
         }
@@ -217,7 +217,7 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             if (values.length > 0) {
                 query += ', '
             }
-            values.push(body.title);
+            values.push(String(body.title));
             query += 'title = ? ';
             Logger.http(`${query}`);
         }
@@ -225,7 +225,7 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             if (values.length > 0) {
                 query += ', '
             }
-            values.push(body.description);
+            values.push(String(body.description));
             query += 'description = ? ';
             Logger.http(`${query}`);
         }
