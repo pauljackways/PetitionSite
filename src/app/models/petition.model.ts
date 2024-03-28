@@ -84,9 +84,9 @@ const getAllPetitions = async (params: any): Promise<any> => {
                     return false;
             }
         } else {
-            query += 'petition.creation_date ASC';
+            query += 'petition.creation_date asc';
         }
-
+        query += ', petition.id asc';
         const [ result ] = await conn.query( query, values);
         await conn.release();
         const paginatedResult = [];
