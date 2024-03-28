@@ -11,21 +11,20 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
     try{
         const validation = await validate(schemas.support_tier_post, req.body);
         if (validation !== true) {
-            // I have tried everything I could to get ajv to filter strings and only allow integers, but it never works.
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);
             return;
         }
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
@@ -39,7 +38,7 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
         }
         const ownerId = petitionResult.ownerId;
         if (!await checkToken(`${ownerId}`, token)) {
-            Logger.http(`token not valid for owner`)
+            Logger.http(`Token not valid for owner`)
             res.statusMessage = "Forbidden. Only the owner of a petition may modify it";
             res.status(403).send();
             return;
@@ -48,19 +47,20 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
         for (const tier of petitionResult.supportTiers) {
             tierCount++;
             if (tier.title === req.body.title) {
-                Logger.http(`titles match`)
+                Logger.http(`Title not unique`)
                 res.statusMessage = "Forbidden. Support title not unique within petition";
                 res.status(403).send();
                 return;
             }
         }
         if (tierCount >= 3) {
-            Logger.http(`maximum number of tiers already`)
+            Logger.http(`Maximum number of tiers already`)
             res.statusMessage = "Forbidden. Can't add a support tier if 3 already exist";
             res.status(403).send();
             return;
         }
         if (await tiers.addSupportTier(req.params.id, req.body)) {
+            Logger.http(`Support tier added`)
             res.statusMessage = "OK";
             res.status(201).send();
             return;
@@ -87,7 +87,7 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
         }
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
@@ -99,50 +99,50 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
                 break;
             }
             if (tier.title === req.body.title) {
-                Logger.http(`titles match`)
+                Logger.http(`Title not unique`)
                 res.statusMessage = "Forbidden. Support title not unique within petition";
                 res.status(403).send();
                 return;
             }
         }
         if (!(existsFlag)) {
-            Logger.http(`support tier not found`)
+            Logger.http(`Support tier not found`)
             res.statusMessage = "Not Found. Support tier does not exist";
             res.status(404).send();
             return;
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const id = Number(await decodeToken(token));
         if (!await checkToken(`${id}`, token)) {
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
         if (!await checkToken(`${ownerId}`, token)) {
-            Logger.http(`token not valid for owner`)
+            Logger.http(`Token not valid for owner`)
             res.statusMessage = "Forbidden. Only the owner of a petition may modify it";
             res.status(403).send();
             return;
         }
         const supportersResult = await supporters.getAllSupportersForPetition(req.params.tierId);
-        Logger.error(`No error yet`)
         for (const pledge of supportersResult) {
             if (pledge.supportTierId === Number(req.params.tierId)) {
-                Logger.http(`supporter exists for tier`)
+                Logger.http(`Supporter exists for tier`)
                 res.statusMessage = "Forbidden. Can not edit a support tier if a supporter already exists for it";
                 res.status(403).send();
                 return;
             }
         }
         if (await tiers.editSupportTier(req.params.tierId, req.body)) {
+            Logger.http(`Support tier patched`)
             res.statusMessage = "OK";
             res.status(200).send();
             return;
@@ -163,7 +163,7 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
     try{
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
@@ -178,34 +178,34 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
             }
         }
         if (!(existsFlag)) {
-            Logger.http(`support tier not found`)
+            Logger.http(`Support tier not found`)
             res.statusMessage = "Not Found. Support tier does not exist";
             res.status(404).send();
             return;
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const id = Number(await decodeToken(token));
         if (!await checkToken(`${id}`, token)) {
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
         if (!await checkToken(`${ownerId}`, token)) {
-            Logger.http(`token not valid for owner`)
+            Logger.http(`Token not valid for owner`)
             res.statusMessage = "Forbidden. Only the owner of a petition may delete it";
             res.status(403).send();
             return;
         }
         if (tierCount <= 1) {
-            Logger.http(`only one support tier`)
+            Logger.http(`Only one support tier`)
             res.statusMessage = "Forbidden. Can not remove a support tier if it is the only one for a petition";
             res.status(403).send();
             return;
@@ -213,13 +213,14 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
         const supportersResult = await supporters.getAllSupportersForPetition(req.params.id);
         for (const pledge of supportersResult) {
             if (pledge.supportTierId === req.params.tierId) {
-                Logger.http(`supporter exists for tier`)
+                Logger.http(`Supporter exists for tier`)
                 res.statusMessage = "Forbidden. Can not delete a support tier if a supporter already exists for it";
                 res.status(403).send();
                 return;
             }
         }
         if (await tiers.deleteSupportTier(req.params.tierId)) {
+            Logger.http(`Support tier deleted`)
             res.statusMessage = "OK";
             res.status(200).send();
             return;

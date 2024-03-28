@@ -12,7 +12,7 @@ const dateFormatter: Intl.DateTimeFormat = new Intl.DateTimeFormat('en-US', {
 });
 
 const getAllPetitions = async (params: any): Promise<any> => {
-    Logger.http(`getting petitions`)
+    Logger.info(`Getting petitions from database`)
     try {
         const conn = await getPool().getConnection();
         const values: any[] = [];
@@ -23,7 +23,7 @@ const getAllPetitions = async (params: any): Promise<any> => {
             ' petition.id=supporter.petition_id left join support_tier on petition.id=support_tier.petition_id' +
             ' left join user on petition.owner_id = user.id ';
         if (params.categoryIds) {
-            query += 'join category on category.id=petition.category_id where (';
+            query += 'left join category on category.id = petition.category_id where (';
             for (let i = 0; i < params.categoryIds.length; i++) {
                 values.push(Number(params.categoryIds[i]));
                 query += 'category.id = ?';
@@ -33,20 +33,16 @@ const getAllPetitions = async (params: any): Promise<any> => {
                     query += ' or ';
                 }
             }
-            Logger.http(`${query}`)
         } else {
             query += 'where ';
-            Logger.http(`${query}`)
         }
         if (params.ownerId) {
             values.push(Number(params.ownerId));
             query += 'petition.owner_id = ? and ';
-            Logger.http(`${query}`);
         }
         if (params.supporterId) {
             values.push(Number(params.supporterId));
             query += 'supporter.user_id = ? and ';
-            Logger.http(`${query}`);
         }
         if (params.q === '') {
             Logger.info(`q is empty string`)
@@ -62,10 +58,8 @@ const getAllPetitions = async (params: any): Promise<any> => {
         if (params.supportingCost) {
             values.push(Number(params.supportingCost));
             query += 'having MIN(support_tier.cost) <= ? ';
-            Logger.http(`${query}`);
         }
         query += 'order by '
-        Logger.http(`${query}`)
         if (params.sortBy) {
             switch (params.sortBy) {
                 case 'ALPHABETICAL_ASC':
@@ -119,7 +113,7 @@ const getAllPetitions = async (params: any): Promise<any> => {
     }
 }
 const getPetition = async (id: string): Promise<any> => {
-    Logger.http(`getting petitions`)
+    Logger.info(`Getting petition from database`)
     try {
         const conn = await getPool().getConnection();
         const mainQuery = 'select petition.id as petitionId, petition.title, petition.category_id as categoryId,' +
@@ -130,7 +124,6 @@ const getPetition = async (id: string): Promise<any> => {
             ' user.id where petition.id = ? group by petition.id';
         const [ result ] = await conn.query( mainQuery, id );
         if (result.length > 0) {
-            Logger.http(`petitions found`)
             const supportTierQuery = 'select support_tier.title, support_tier.description, cost, support_tier.id as' +
                 ' supportTierId from support_tier join petition on support_tier.petition_id = petition.id where petition.id = ?';
             const [ supportTiers ] = await conn.query( supportTierQuery, id );
@@ -145,6 +138,7 @@ const getPetition = async (id: string): Promise<any> => {
     }
 }
 const addPetition = async (id: number, body: any): Promise<any> => {
+    Logger.info(`Adding petition to database`)
     try {
         const categories = await getCategories();
         let categoryFlag = 0;
@@ -157,7 +151,6 @@ const addPetition = async (id: number, body: any): Promise<any> => {
         if (!categoryFlag){
             return false;
         }
-        Logger.info(`${body.categoryId}`)
         if (!body.supportTiers[0] || body.supportTiers[3]) {
             return false;
         }
@@ -188,6 +181,7 @@ const addPetition = async (id: number, body: any): Promise<any> => {
     }
 }
 const editPetition = async (id: string, body: any): Promise<boolean> => {
+    Logger.info(`Editing petition on database`)
     try {
         if (!body.title && !body.description && !body.categoryId) {
             return true; // No changes were made
@@ -211,7 +205,6 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             }
             values.push(Number(body.categoryId));
             query += 'category_id = ? ';
-            Logger.http(`${query}`);
         }
         if (body.title) {
             if (values.length > 0) {
@@ -219,7 +212,6 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             }
             values.push(String(body.title));
             query += 'title = ? ';
-            Logger.http(`${query}`);
         }
         if (body.description) {
             if (values.length > 0) {
@@ -227,7 +219,6 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
             }
             values.push(String(body.description));
             query += 'description = ? ';
-            Logger.http(`${query}`);
         }
         values.push(id);
         query += 'where id = ?';
@@ -241,25 +232,24 @@ const editPetition = async (id: string, body: any): Promise<boolean> => {
 }
 const deletePetition = async (id: string): Promise<boolean> => {
     try {
+        Logger.info( `Deleting petition from database`)
         const conn = await getPool().getConnection();
         const supporterQuery = 'select supporter.id from petition join supporter on supporter.petition_id =' +
             ' petition.id where petition.id = ?';
         const [ supporterResult ] = await conn.query( supporterQuery, id );
         if (supporterResult.length > 0) {
-            Logger.http(`supporters exist`)
             return false;
         }
         const query = 'delete from petition where id = ?';
         const [ result ] = await conn.query( query, id );
         await conn.release();
-        Logger.http(`deleted petition`)
         return true;
     } catch(err) {
         Logger.error(err);
     }
 }
 const getCategories = async (): Promise<any> => {
-    Logger.http(`getting categories`)
+    Logger.info(`Getting categories from database`)
     try {
         const conn = await getPool().getConnection();
         const query = 'select id as categoryId, name from category';

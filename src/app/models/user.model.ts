@@ -24,16 +24,15 @@ const loginUser = async (body: any): Promise<any> => {
         const getQuery = 'select password, id from user where email = ?';
         const [ result ] = await conn.query( getQuery, [ body.email ] );
         if (!(result.length > 0)) {
-            Logger.info(`no user with that email`);
+            Logger.info(`No user with that email`);
             await conn.release();
             return false;
         }
         if (!await compare(body.password, result[0].password)) {
-            Logger.info(`passwords don't match`);
+            Logger.info(`Passwords don't match`);
             await conn.release();
             return false;
         }
-        Logger.info(`passwords match`);
         result[0].token = createToken(`${result[0].id}`);
         const setQuery = 'update user set auth_token = ? where id = ?';
         const [ tokenSet ] = await conn.query( setQuery, [ result[0].token, result[0].id ] );
@@ -46,14 +45,13 @@ const loginUser = async (body: any): Promise<any> => {
 
 const logoutUser = async (id: string): Promise<boolean> => {
     try {
-        Logger.info(`logging out user ${id}`);
+        Logger.info(`Logging out user ${id}, deleting token from database`);
         const conn = await getPool().getConnection();
         const query = 'update user set auth_token = null where id = ?';
         const [ updateResult ] = await conn.query( query, [ Number(id) ] );
         const deletedQuery = 'select auth_token from user where id = ?';
         const [ deletedResult ] = await conn.query( deletedQuery, [ Number(id) ] );
         await conn.release();
-        Logger.info(`auth token${deletedResult[0].auth_token}`);
         if (deletedResult[0].auth_token) {
             throw new Error('Logout failed');
         } else {
@@ -74,6 +72,7 @@ const viewUser = async (id: string, authenticated: boolean): Promise<any> => {
             await conn.release();
             return result;
         } else {
+            Logger.info(`Getting user ${id} from the database (not authenticated)`);
             const query = 'select first_name as firstName, last_name as lastName from user where id = ?';
             const [ result ] = await conn.query( query, [ id ] );
             await conn.release();
@@ -85,6 +84,7 @@ const viewUser = async (id: string, authenticated: boolean): Promise<any> => {
 }
 const updateUser = async (id: string, updateData: Record<string, any>): Promise<any> => {
     try {
+        Logger.info(`Updating user on the database`);
         const conn = await getPool().getConnection();
         const values: any[] = [];
         let query = 'update user set ';
@@ -121,10 +121,8 @@ const updateUser = async (id: string, updateData: Record<string, any>): Promise<
         }
         query += ' where id = ?'
         values.push(Number(id));
-        Logger.http(`${query} query`)
         const [ result ] = await conn.query( query, values );
         await conn.release();
-        Logger.http(`released`)
         return result;
     } catch(err) {
         Logger.error(err);
@@ -132,7 +130,7 @@ const updateUser = async (id: string, updateData: Record<string, any>): Promise<
 }
 
 const checkUnique = async (key: string, value: string): Promise<boolean> => {
-    Logger.http(`checking uniqueness`)
+    Logger.info(`Checking uniqueness of ${key}`)
     try {
         const conn = await getPool().getConnection();
         const query = 'select ' + key + ' from user where ' + key + ' = ?';

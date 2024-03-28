@@ -97,24 +97,29 @@
         "maxLength": 64
       },
       "ownerId": {
-        "type": "string",
-        "minLength": 1
+        "type": "integer",
+        "minimum": 0,
+        "nullable": false
       },
       "supporterId": {
-        "type": "string",
-        "minLength": 1
+        "type": "integer",
+        "minimum": 0,
+        "nullable": false
       },
       "startIndex": {
-        "type": "string",
-        "minLength": 1
+        "type": "integer",
+        "minimum": 0,
+        "nullable": false
       },
       "count": {
-        "type": "string",
-        "minLength": 1
+        "type": "integer",
+        "minimum": 0,
+        "nullable": false
       },
       "supportingCost": {
-        "type": "string",
-        "minLength": 1
+        "type": "integer",
+        "minimum": 0,
+        "nullable": false
       },
       "sortBy": {
         "type": "string",

@@ -2,6 +2,7 @@ import { getPool } from '../../config/db';
 import Logger from '../../config/logger';
 
 const addSupportTier = async (id: string, body: any): Promise<any> => {
+    Logger.info(`Adding support tier to database`)
     try {
         const conn = await getPool().getConnection();
         const query = 'insert into support_tier (title, description, cost, petition_id) values (?, ?, ?, ?)';
@@ -14,6 +15,7 @@ const addSupportTier = async (id: string, body: any): Promise<any> => {
     }
 }
 const deleteSupportTier = async (id: string): Promise<any> => {
+    Logger.info(`Deleting support tier from database`)
     try {
         const conn = await getPool().getConnection();
         const query = 'delete from support_tier where id = ?';
@@ -26,7 +28,7 @@ const deleteSupportTier = async (id: string): Promise<any> => {
     }
 }
 const editSupportTier = async (id: string, body: any): Promise<any> => {
-    Logger.http(`patching support tier`)
+    Logger.info(`Updating support tier on database`)
     try {
         const conn = await getPool().getConnection();
         let query = 'update support_tier set ';

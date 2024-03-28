@@ -7,7 +7,8 @@ import {validate} from "../services/validation";
 
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
     try{
-        const validation = await validate(schemas.petition_search, req.body);
+        Logger.http(`GET Get all petitions based on search parameters`)
+        const validation = await validate(schemas.petition_search, req.query);
         if (validation !== true) {
             Logger.http(`Failed ajv validation. ${validation.toString()}`)
             res.status(400).send(`Bad request. Invalid information`);
@@ -15,11 +16,12 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         }
         const result = await petitions.getAllPetitions(req.query);
         if (!result) {
+            Logger.http(`Query parameters rejected by system`)
             res.statusMessage = "Bad Request";
             res.status(400).send();
             return;
         }
-        Logger.http(`sending petitions`);
+        Logger.http(`Sending petitions`);
         res.statusMessage = "OK";
         res.status(200).send(result);
         return;
@@ -56,10 +58,9 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
     try{
         const titleResult = await petitions.getAllPetitions({q: req.body.title});
         if (titleResult[0]) {
-            Logger.info(`title ${titleResult[0].title}`)
             for (const item of titleResult) {
                 if (item.title === req.body.title) {
-                    Logger.http(`titles match`)
+                    Logger.http(`Titles match`)
                     res.statusMessage = "Forbidden. Petition title already exists";
                     res.status(403).send();
                     return;
@@ -74,27 +75,26 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const id = await decodeToken(token);
-        Logger.info(`id ${id}`)
         if (!await checkToken(id, token)){
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const result = await petitions.addPetition(parseInt(id, 10), req.body)
         if (result) {
-            Logger.http(`petition created`);
+            Logger.http(`Petition created`);
             res.statusMessage = "Created";
             res.status(201).send(result);
             return;
         } else {
-            Logger.http(`bad request`);
+            Logger.http(`Bad request`);
             res.statusMessage = "Bad Request";
             res.status(400).send();
             return;
@@ -117,7 +117,7 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         }
         const getResult = await petitions.getPetition(req.params.id);
         if (!getResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Fount. No petition with id";
             res.status(404).send();
             return;
@@ -125,10 +125,9 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         if (req.body.title) {
             const titleResult = await petitions.getAllPetitions({q: req.body.title});
             if (titleResult[0]) {
-                Logger.info(`title ${titleResult[0].title}`)
                 for (const item of titleResult) {
                     if (item.title === req.body.title) {
-                        Logger.http(`titles match`)
+                        Logger.http(`Titles match`)
                         res.statusMessage = "Forbidden. Petition title already exists";
                         res.status(403).send();
                         return;
@@ -141,7 +140,7 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
@@ -149,19 +148,19 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         const petition = await petitions.getPetition(req.params.id);
         const ownerId = petition.ownerId;
         if (!await checkToken(`${ownerId}`, token)) {
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Forbidden. Only the owner of a petition may change it";
             res.status(403).send();
             return;
         }
         const editResult = await petitions.editPetition(req.params.id, req.body)
         if (editResult) {
-            Logger.http(`petition updated`);
+            Logger.http(`Petition updated`);
             res.statusMessage = "OK";
             res.status(201).send();
             return;
         } else {
-            Logger.http(`bad request`);
+            Logger.http(`Bad request`);
             res.statusMessage = "Bad Request";
             res.status(400).send();
             return;
@@ -178,14 +177,14 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
     try{
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const check = await petitions.getPetition(req.params.id)
         if (!check) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition found with id";
             res.status(404).send();
             return;
@@ -193,19 +192,19 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
         const petition = await petitions.getPetition(req.params.id);
         const ownerId = petition.ownerId;
         if (!await checkToken(`${ownerId}`, token)) {
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Forbidden. Only the owner of a petition may delete it";
             res.status(403).send();
             return;
         }
         const result = await petitions.deletePetition(req.params.id);
         if (!result) {
-            Logger.http(`found supporters`)
+            Logger.http(`Found supporters`)
             res.statusMessage = "Can not delete a petition with one or more supporters";
             res.status(403).send();
             return;
         }
-        Logger.http(`deleted petition`);
+        Logger.http(`Deleted petition`);
         res.statusMessage = "OK";
         res.status(200).send(result);
         return;
@@ -219,14 +218,14 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
 
 const getCategories = async(req: Request, res: Response): Promise<void> => {
     try{
-        Logger.http(`getting categories`);
+        Logger.http(`Getting categories`);
         const result = await petitions.getCategories();
         if (!result) {
             res.statusMessage = "Internal Server Error";
             res.status(500).send();
             return;
         }
-        Logger.http(`sending categories`);
+        Logger.http(`Sending categories`);
         res.statusMessage = "OK";
         res.status(200).send(result);
         return;

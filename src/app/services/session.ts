@@ -6,12 +6,10 @@ dotenv.config();
 
 
 const createToken = (payload: string) => {
-    Logger.http(`Generating session token`);
+    Logger.info(`Generating session token`);
     try {
         const secretKey = process.env.SENG365_JWT_KEY || "NoKeyInENV";
         const newToken = jwt.sign(payload, secretKey);
-        Logger.http(`payload ${payload}`);
-        Logger.info(`token ${newToken}`);
         return newToken;
     } catch (err) {
         throw new Error(err.message);
@@ -19,7 +17,7 @@ const createToken = (payload: string) => {
 }
 
 const decodeToken = async (token: string): Promise<null | any> => {
-    Logger.http(`Decoding session token`);
+    Logger.info(`Decoding session token`);
     try {
         if (!token) {
             return false;
@@ -27,13 +25,13 @@ const decodeToken = async (token: string): Promise<null | any> => {
         const secretKey = process.env.SENG365_JWT_KEY || "NoKeyInENV";
         return jwt.verify(token, secretKey);
     } catch (err) {
-        Logger.http(`failed at Decoding session token`);
+        Logger.info(`Failed at Decoding session token`);
         throw new Error(err.message);
     }
 }
 
 const checkToken = async (reqId: string, userToken: string): Promise<boolean> => {
-    Logger.http(`checking token ${userToken}`)
+    Logger.info(`Checking the token provided for user id ${reqId} matches token in the database`)
     try {
         const id = await decodeToken(userToken);
         if (reqId !== id) {

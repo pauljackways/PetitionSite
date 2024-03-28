@@ -17,7 +17,7 @@ const register = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         if (!await users.checkUnique('email', req.body.email)) {
-            Logger.http(`email already in use`)
+            Logger.http(`Email already in use`)
             res.status(403).send('Forbidden. Email already in use');
             return;
         }
@@ -51,8 +51,6 @@ const login = async (req: Request, res: Response): Promise<void> => {
             "token": result.token
         }
         res.status(200).json(tokenJson);
-        Logger.http(`Token JSON: ${JSON.stringify(tokenJson)}`);
-        Logger.http(`User ID: ${JSON.parse(JSON.stringify(tokenJson)).userId}`);
         return;
     } catch (err) {
         Logger.error(err);
@@ -67,13 +65,15 @@ const logout = async (req: Request, res: Response): Promise<void> => {
         const tokenCoded = req.header('X-Authorization');
         const id = await decodeToken(tokenCoded);
         if (!await checkToken(`${id}`,tokenCoded)) {
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Unauthorized. Cannot log out if you are not authenticated";
             res.status(401).send();
             return;
         }
         if (await users.logoutUser(`${id}`)) {
-            res.statusMessage = "logged out";
-            res.status(200).send(`OK`);
+            Logger.http(`Logged out`)
+            res.statusMessage = "OK. Logged out";
+            res.status(200).send();
             return;
         }
     } catch (err) {
@@ -90,9 +90,13 @@ const view = async (req: Request, res: Response): Promise<void> => {
         const authenticated = await checkToken(`${req.params.id}`, tokenCoded);
         const result = await users.viewUser(req.params.id, authenticated);
         if (result.length === 0) {
-            res.status(404).send('Not Found. No user with specified ID');
+            Logger.http(`Not Found. No user with specified ID`)
+            res.statusMessage = "Not Found. No user with specified ID";
+            res.status(404).send();
             return;
         } else {
+            Logger.http(`Sending user info`)
+            res.statusMessage = "OK";
             res.status(200).send(result[0]);
             return;
         }
@@ -114,36 +118,35 @@ const update = async (req: Request, res: Response): Promise<void> => {
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const id = await decodeToken(token);
         if (!await checkToken(`${req.params.id}`, token)){
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Forbidden. Can not edit another user's information";
             res.status(403).send();
             return;
         }
         if (req.body.password + req.body.currentPassword === 1) {
-            Logger.http(`one password given, not both`)
+            Logger.http(`One password given, not both`)
             res.status(400).send(`Bad request. Invalid information`);
             return;
         }
         const updateData: Record<string, any> = {};
         if (req.body.password && req.body.currentPassword) {
-            Logger.http(`both passwords exist`)
+            Logger.info(`Both passwords exist`)
             if (req.body.password === req.body.currentPassword) {
-                Logger.http(`both passwords same`)
+                Logger.info(`Both passwords same`)
                 res.statusMessage = "Forbidden. Identical current and new passwords";
                 res.status(403).send();
                 return;
             } else {
-                Logger.http(`passwords both given and different`)
+                Logger.info(`Passwords both given and different`)
                 const hashedPassword = await hash(req.body.password);
                 updateData.password = hashedPassword;
-                Logger.http(`new password ${updateData.password}`)
                 updateData.oldPassword = req.body.currentPassword;
             }
         }
@@ -151,7 +154,7 @@ const update = async (req: Request, res: Response): Promise<void> => {
         updateData.lastName = req.body.lastName;
         if (req.body.email) {
             if (!await users.checkUnique('email', req.body.email)) {
-                Logger.http(`email already in use`)
+                Logger.http(`Email already in use`)
                 res.status(403).send('Forbidden. Email already in use');
                 return;
             } else {
@@ -161,13 +164,13 @@ const update = async (req: Request, res: Response): Promise<void> => {
         const userId = req.params.id;
         const result = await users.updateUser(`${userId}`, updateData);
         if (result === -1) {
-            Logger.http(`ID given password doesn't match oldpassword`)
+            Logger.http(`Old password doesn't match password related to ID`)
             res.statusMessage = "Unauthorized or Invalid currentPassword";
             res.status(401).send();
             return;
         }
         if (result.affectedRows > 0) {
-            Logger.http(`updated`)
+            Logger.http(`Updated user`)
             res.status(200).send(result[0]);
             return;
         } else {

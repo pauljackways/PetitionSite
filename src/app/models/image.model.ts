@@ -5,7 +5,7 @@ import { ResultSetHeader } from 'mysql2';
 const filePath = `storage/default/`;
 const getImage = async (table: string, id: string): Promise<any> => {
     try {
-        Logger.info(`getting photo from database`);
+        Logger.info(`Getting photo from database`);
         const conn = await getPool().getConnection();
         const query = 'select id, image_filename from ' + table + ' where id = ?';
         const [ queryResult ] = await conn.query( query, [ id ] );
@@ -50,19 +50,21 @@ const setImage = async (table: string, id: string, MIME: string, imageData: Buff
 
 const deleteImage = async (table: string, id: string, filename = ''): Promise<any> => {
     try {
+        Logger.info(`Deleting image from database`)
         const conn = await getPool().getConnection();
         const getQuery = 'select image_filename from ' + table + ' where id = ?';
         const [ queryResult ] = await conn.query( getQuery, id );
         await conn.release();
+        Logger.info(`Unlinking image from storage`)
         try {
             await fs.promises.unlink(filePath + queryResult[0].image_filename);
         } catch(err) {
-            Logger.info(`no file 1`)
+            Logger.info(`No filepath.queryResult filename already in storage`)
         }
         try {
             await fs.promises.unlink(filePath + filename);
         } catch(err) {
-            Logger.info(`no file 2`)
+            Logger.info(`No filepath.filename already in storage`)
         }
         return true;
     } catch(err) {

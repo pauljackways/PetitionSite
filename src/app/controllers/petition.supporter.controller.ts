@@ -12,7 +12,7 @@ const getAllSupportersForPetition = async (req: Request, res: Response): Promise
     try{
         const getResult = await petitions.getPetition(req.params.id);
         if (!getResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
@@ -38,7 +38,7 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
         }
         const petitionResult = await petitions.getPetition(req.params.id);
         if (!petitionResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
@@ -51,35 +51,35 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
             }
         }
         if (!(existsFlag)) {
-            Logger.http(`support tier not found`)
+            Logger.http(`Support tier not found`)
             res.statusMessage = "Not Found. Support tier does not exist";
             res.status(404).send();
             return;
         }
         const token = req.header('X-Authorization');
         if (!token) {
-            Logger.http(`token not provided`)
+            Logger.http(`Token not provided`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const id = Number(await decodeToken(token));
         if (!await checkToken(`${id}`, token)) {
-            Logger.http(`token not valid for user`)
+            Logger.http(`Token not valid for user`)
             res.statusMessage = "Unauthorized";
             res.status(401).send();
             return;
         }
         const ownerId = petitionResult.ownerId;
         if (await checkToken(`${ownerId}`, token)) {
-            Logger.http(`token valid for owner`)
+            Logger.http(`Token valid for owner`)
             res.statusMessage = "Forbidden. Cannot support your own petition";
             res.status(403).send();
             return;
         }
         const supportersResult = await supporters.getAllSupportersForPetition(req.params.id);
         if (!supportersResult) {
-            Logger.http(`petition not found`)
+            Logger.http(`Petition not found`)
             res.statusMessage = "Not Found. No petition with id";
             res.status(404).send();
             return;
@@ -94,7 +94,7 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
             }
         }
         if (existsFlag) {
-            Logger.http(`user already supports tier`)
+            Logger.http(`User already supports tier`)
             res.statusMessage = "Forbidden. Already supported at this tier";
             res.status(403).send();
             return;
@@ -103,6 +103,7 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
         supporterData.id = id;
         supporterData.petitionId = req.params.id;
         if (await supporters.addSupporter(req.body)) {
+            Logger.http(`Supporter added`)
             res.statusMessage = "Created";
             res.status(201).send();
             return;

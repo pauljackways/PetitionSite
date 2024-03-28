@@ -15,7 +15,7 @@ const dateFormatter: Intl.DateTimeFormat = new Intl.DateTimeFormat('en-US', {
 });
 const addSupporter = async (supporter: any): Promise<any> => {
     try {
-        Logger.info(`Adding supporter`);
+        Logger.info(`Adding supporter to petition on database`);
         const timestamp: Date = new Date();
         dateFormatter.format(timestamp);
         const conn = await getPool().getConnection();
@@ -30,7 +30,7 @@ const addSupporter = async (supporter: any): Promise<any> => {
     }
 }
 const getAllSupportersForPetition = async (id: string): Promise<any> => {
-    Logger.http(`getting supporters`)
+    Logger.info(`Getting supporters for petition from database`)
     try {
         const conn = await getPool().getConnection();
         const query = 'select supporter.id as supportId, support_tier_id as supportTierId, message, user_id as' +
